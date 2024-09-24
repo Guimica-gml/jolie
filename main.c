@@ -2,7 +2,7 @@
 #include "./arena.h"
 
 // TODO(nic): have better error messages
-// TODO(nic): implement game of life (game of jolie[mommy energy 1000 lolol])
+// TODO(nic): implement game of life (game of jolie)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +27,7 @@
         if ((da)->capacity <= (da)->count) {                            \
             size_t old_size = (da)->capacity * sizeof(*(da)->items);    \
             (da)->capacity = ((da)->capacity == 0) ? DA_INIT_CAP : (da)->capacity * 2; \
-            (da)->items = arena_realloc(arena, (da)->items, old_size, (da)->capacity * sizeof(*(da)->items)); \
+            (da)->items = arena_realloc((arena), (da)->items, old_size, (da)->capacity * sizeof(*(da)->items)); \
         }                                                               \
         (da)->items[(da)->count++] = (item);                            \
     } while(0);
@@ -249,23 +249,10 @@ struct Jolie_Expr {
 };
 
 typedef struct {
-    Jolie_List *items;
+    Jolie_Expr *items;
     size_t count;
     size_t capacity;
 } Jolie_Ast;
-
-Jolie_Token jolie_expect(Jolie_Lexer *lexer, Jolie_Token_Type type) {
-    Jolie_Token token = jolie_next_token(lexer);
-    if (token.type != type) {
-        fprintf(
-            stderr, SRC_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected %s\n",
-            SRC_LOC_ARG(token.loc),
-            SV_ARG(token.text),
-            jolie_token_type_to_cstr(type));
-        exit(1);
-    }
-    return token;
-}
 
 uint64_t sv_to_uint64(String_View sv) {
     uint64_t num = 0;
@@ -282,82 +269,81 @@ bool sv_eq(String_View a, String_View b) {
     return memcmp(a.data, b.data, a.length) == 0;
 }
 
-typedef struct {
-    Jolie_Src_Loc *items;
-    size_t count;
-    size_t capacity;
-} Jolie_Src_Locs;
+Jolie_Expr jolie_parse_expr(Arena *arena, Jolie_Lexer *lexer);
 
-#define jolie_parse_list(arena, lexer) \
-    jolie_parse_list_impl((arena), (lexer), &(Jolie_Src_Locs){0})
-
-Jolie_List jolie_parse_list_impl(Arena *arena, Jolie_Lexer *lexer, Jolie_Src_Locs *paren_locs) {
+Jolie_List jolie_parse_list(Arena *arena, Jolie_Lexer *lexer) {
     Jolie_List expr_list = {0};
 
-    Jolie_Token paren = jolie_expect(lexer, JOLIE_PAREN_OPEN);
-    da_push(arena, paren_locs, paren.loc);
+    Jolie_Token paren_open = jolie_next_token(lexer);
+    assert(paren_open.type == JOLIE_PAREN_OPEN);
 
     while (true) {
-        Jolie_Expr expr = {0};
         Jolie_Token peek = jolie_peek_token(lexer);
-
-        switch (peek.type) {
-        case JOLIE_PAREN_OPEN: {
-            expr.type = JOLIE_EXPR_LIST;
-            expr.as.list = jolie_parse_list_impl(arena, lexer, paren_locs);
-            expr.as.list.loc = peek.loc;
-        } break;
-        case JOLIE_PAREN_CLOSE: {
+        if (peek.type == JOLIE_PAREN_CLOSE) {
             jolie_next_token(lexer);
-            paren_locs->count -= 1;
-            goto end;
-        } break;
-        case JOLIE_UINT64: {
-            Jolie_Token token = jolie_next_token(lexer);
-            expr.type = JOLIE_EXPR_UINT64;
-            expr.as.uint64.value = sv_to_uint64(token.text);
-            expr.as.uint64.loc = token.loc;
-        } break;
-        case JOLIE_WORD: {
-            Jolie_Token token = jolie_next_token(lexer);
-            expr.type = JOLIE_EXPR_WORD;
-            expr.as.word.value = token.text;
-            expr.as.word.loc = token.loc;
-        } break;
-        case JOLIE_END: {
-            // TODO(nic): since we only report one error at a time
-            // the array of open parenthesis locations is quite useless
-            // but one day it will be useful.. believe me
+            break;
+        } else if (peek.type == JOLIE_END) {
             fprintf(
                 stderr, SRC_LOC_FMT": Error: unclosed parenthesis\n",
-                SRC_LOC_ARG(paren_locs->items[0]));
+                SRC_LOC_ARG(paren_open.loc));
             exit(1);
-        } break;
+        } else {
+            Jolie_Expr expr = jolie_parse_expr(arena, lexer);
+            da_push(arena, &expr_list, expr);
         }
-
-        da_push(arena, &expr_list, expr);
     }
 
-end:
     return expr_list;
+}
+
+Jolie_Expr jolie_parse_expr(Arena *arena, Jolie_Lexer *lexer) {
+    Jolie_Expr expr = {0};
+
+    Jolie_Token peek = jolie_peek_token(lexer);
+    switch (peek.type) {
+    case JOLIE_PAREN_OPEN: {
+        expr.type = JOLIE_EXPR_LIST;
+        expr.as.list = jolie_parse_list(arena, lexer);
+        expr.as.list.loc = peek.loc;
+    } break;
+    case JOLIE_UINT64: {
+        Jolie_Token token = jolie_next_token(lexer);
+        expr.type = JOLIE_EXPR_UINT64;
+        expr.as.uint64.value = sv_to_uint64(token.text);
+        expr.as.uint64.loc = token.loc;
+    } break;
+    case JOLIE_WORD: {
+        Jolie_Token token = jolie_next_token(lexer);
+        expr.type = JOLIE_EXPR_WORD;
+        expr.as.word.value = token.text;
+        expr.as.word.loc = token.loc;
+    } break;
+    case JOLIE_PAREN_CLOSE: {
+        fprintf(
+            stderr, SRC_LOC_FMT": Error: expected expression, but found `)`\n",
+            SRC_LOC_ARG(peek.loc));
+        exit(1);
+    } break;
+    case JOLIE_END: {
+        fprintf(
+            stderr, SRC_LOC_FMT": Error: unexpected end of file\n",
+            SRC_LOC_ARG(peek.loc));
+        exit(1);
+    } break;
+    }
+
+    return expr;
 }
 
 Jolie_Ast jolie_parse(Arena *arena, Jolie_Lexer *lexer) {
     Jolie_Ast program = {0};
     while (true) {
-        Jolie_Token token = jolie_peek_token(lexer);
-        if (token.type == JOLIE_END) {
+        Jolie_Token peek = jolie_peek_token(lexer);
+        if (peek.type == JOLIE_END) {
             break;
-        } else if (token.type == JOLIE_PAREN_OPEN) {
-            Jolie_List expr_list = jolie_parse_list(arena, lexer);
-            da_push(arena, &program, expr_list);
-        } else {
-            fprintf(
-                stderr, SRC_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected list\n",
-                SRC_LOC_ARG(token.loc),
-                SV_ARG(token.text));
-            exit(1);
         }
+        Jolie_Expr expr = jolie_parse_expr(arena, lexer);
+        da_push(arena, &program, expr);
     }
     return program;
 }
@@ -403,7 +389,6 @@ Jolie_Runtime_Result jolie_error(String_View message) {
 }
 
 Jolie_Runtime_Result jolie_eval_expr(Jolie_Env *env, Jolie_Expr *expr);
-Jolie_Runtime_Result jolie_eval_list(Jolie_Env *env, Jolie_List *list);
 
 Jolie_Var *jolie_gimme_var(Jolie_Env *env, String_View name) {
     for (size_t i = 0; i < env->vars.count; ++i) {
@@ -789,25 +774,22 @@ bool jolie_is_func_call(Jolie_List *list) {
     return expr.type == JOLIE_EXPR_WORD;
 }
 
-Jolie_Runtime_Result jolie_eval_list(Jolie_Env *env, Jolie_List *list) {
-    if (jolie_is_func_call(list)) {
-        String_View func_name = list->items[0].as.word.value;
-        for (size_t i = 0; i < jolie_intrinsics_count; ++i) {
-            Jolie_Intrinsic *intr = &jolie_intrinsics[i];
-            if (sv_eq(func_name, intr->name)) {
-                return intr->func(env, list);
-            }
-        }
-        // TODO: implement actual func calls
-        return jolie_error(SV("Error: unknown function"));
-    }
-    return jolie_error(SV("Error: list is not a function call"));
-}
-
 Jolie_Runtime_Result jolie_eval_expr(Jolie_Env *env, Jolie_Expr *expr) {
     switch (expr->type) {
     case JOLIE_EXPR_LIST: {
-        return jolie_eval_list(env, &expr->as.list);
+        Jolie_List *list = &expr->as.list;
+        if (jolie_is_func_call(list)) {
+            String_View func_name = list->items[0].as.word.value;
+            for (size_t i = 0; i < jolie_intrinsics_count; ++i) {
+                Jolie_Intrinsic *intr = &jolie_intrinsics[i];
+                if (sv_eq(func_name, intr->name)) {
+                    return intr->func(env, list);
+                }
+            }
+            // TODO: implement actual func calls
+            return jolie_error(SV("Error: unknown function"));
+        }
+        return jolie_error(SV("Error: list is not a function call"));
     } break;
     case JOLIE_EXPR_UINT64: {
         return jolie_success(expr->as.uint64.value);
@@ -818,7 +800,7 @@ Jolie_Runtime_Result jolie_eval_expr(Jolie_Env *env, Jolie_Expr *expr) {
                 return jolie_success(*env->vars.items[i].address);
             }
         }
-        return jolie_error(SV("Error: unknow variable"));
+        return jolie_error(SV("Error: unknown variable"));
     } break;
     default: assert(0 && "unreachable");
     }
@@ -828,13 +810,11 @@ uint64_t jolie_interpret(Jolie_Ast *ast) {
     Jolie_Env env = {0};
 
     for (size_t i = 0; i < ast->count; ++i) {
-        Jolie_List *list = &ast->items[i];
-        if (jolie_is_func_call(list)) {
-            Jolie_Runtime_Result result = jolie_eval_list(&env, list);
-            if (result.failed) {
-                fprintf(stderr, SV_FMT"\n", SV_ARG(result.error_message));
-                exit(1);
-            }
+        Jolie_Expr *expr = &ast->items[i];
+        Jolie_Runtime_Result result = jolie_eval_expr(&env, expr);
+        if (result.failed) {
+            fprintf(stderr, SV_FMT"\n", SV_ARG(result.error_message));
+            exit(1);
         }
     }
 
