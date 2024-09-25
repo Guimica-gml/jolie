@@ -278,7 +278,7 @@ typedef struct {
     Jolie_Expr *items;
     size_t count;
     size_t capacity;
-} Jolie_Ast;
+} Jolie_Block;
 
 uint64_t sv_to_uint64(String_View sv) {
     uint64_t num = 0;
@@ -301,10 +301,22 @@ typedef struct {
 } Jolie_Var;
 
 typedef struct {
+    String_View name;
+    Jolie_Block block;
+    Jolie_List arg_names;
+} Jolie_Func;
+
+typedef struct {
     Jolie_Var *items;
     size_t count;
     size_t capacity;
 } Jolie_Vars;
+
+typedef struct {
+    Jolie_Func *items;
+    size_t count;
+    size_t capacity;
+} Jolie_Funcs;
 
 #define JOLIE_STACK_CAP 2048
 
@@ -314,6 +326,7 @@ typedef struct {
 
     Arena arena;
     Jolie_Vars vars;
+    Jolie_Funcs funcs;
 } Jolie_Env;
 
 Jolie_Expr jolie_parse_expr(Jolie_Env *env, Jolie_Lexer *lexer);
@@ -432,8 +445,8 @@ Jolie_Expr jolie_parse_expr(Jolie_Env *env, Jolie_Lexer *lexer) {
     return expr;
 }
 
-Jolie_Ast jolie_parse(Jolie_Env *env, Jolie_Lexer *lexer) {
-    Jolie_Ast program = {0};
+Jolie_Block jolie_parse(Jolie_Env *env, Jolie_Lexer *lexer) {
+    Jolie_Block program = {0};
     while (true) {
         Jolie_Token peek = jolie_peek_token(lexer);
         if (peek.type == JOLIE_END) {
@@ -465,6 +478,7 @@ Jolie_Runtime_Result jolie_error(String_View message) {
 }
 
 Jolie_Runtime_Result jolie_eval_expr(Jolie_Env *env, Jolie_Expr *expr);
+Jolie_Runtime_Result jolie_eval_block(Jolie_Env *env, Jolie_Block *block);
 
 Jolie_Var *jolie_gimme_var(Jolie_Env *env, String_View name) {
     for (size_t i = 0; i < env->vars.count; ++i) {
@@ -475,7 +489,55 @@ Jolie_Var *jolie_gimme_var(Jolie_Env *env, String_View name) {
     return NULL;
 }
 
+Jolie_Func *jolie_gimme_func(Jolie_Env *env, String_View name) {
+    for (size_t i = 0; i < env->funcs.count; ++i) {
+        if (sv_eq(name, env->funcs.items[i].name)) {
+            return &env->funcs.items[i];
+        }
+    }
+    return NULL;
+}
+
 typedef Jolie_Runtime_Result (*Jolie_Intrinsic_Func)(Jolie_Env *env, Jolie_List *list);
+
+Jolie_Runtime_Result jolie_defun_intrinsic(Jolie_Env *env, Jolie_List *list) {
+    if (list->count < 3) {
+        return jolie_error(SV("Error: invalid `defun` intrinsic"));
+    }
+
+    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("defun"))) {
+        return jolie_error(SV("Error: invalid `defun` intrinsic"));
+    }
+
+    if (list->items[1].type != JOLIE_EXPR_WORD) {
+        return jolie_error(SV("Error: invalid `defun` intrinsic"));
+    }
+    String_View name = list->items[1].as.word;
+
+    if (list->items[2].type != JOLIE_EXPR_LIST) {
+        return jolie_error(SV("Error: invalid `defun` intrinsic"));
+    }
+    Jolie_List args = list->items[2].as.list;
+
+    for (size_t i = 0; i < args.count; ++i) {
+        if (args.items[i].type != JOLIE_EXPR_WORD) {
+            return jolie_error(SV("Error: invalid `defun` intrinsic"));
+        }
+    }
+
+    Jolie_Block block = {0};
+    for (size_t i = 3; i < list->count; ++i) {
+        da_push(&env->arena, &block, list->items[i]);
+    }
+
+    if (jolie_gimme_func(env, name) != NULL) {
+        return jolie_error(SV("Error: function already declared"));
+    }
+
+    Jolie_Func func = { name, block, args };
+    da_push(&env->arena, &env->funcs, func);
+    return jolie_success(0);
+}
 
 Jolie_Runtime_Result jolie_let_intrinsic(Jolie_Env *env, Jolie_List *list) {
     if (list->count != 3) {
@@ -822,6 +884,7 @@ typedef struct {
 } Jolie_Intrinsic;
 
 Jolie_Intrinsic jolie_intrinsics[] = {
+    { .name = SV_STATIC("defun"), .func = jolie_defun_intrinsic },
     { .name = SV_STATIC("let"), .func = jolie_let_intrinsic },
     { .name = SV_STATIC("set"), .func = jolie_set_intrinsic },
     { .name = SV_STATIC("make-array"), .func = jolie_make_array_intrinsic },
@@ -860,7 +923,12 @@ Jolie_Runtime_Result jolie_eval_expr(Jolie_Env *env, Jolie_Expr *expr) {
                     return intr->func(env, list);
                 }
             }
-            // TODO: implement actual func calls
+            for (size_t i = 0; i < env->funcs.count; ++i) {
+                Jolie_Func *func = &env->funcs.items[i];
+                if (sv_eq(func_name, func->name)) {
+                    return jolie_eval_block(env, &func->block);
+                }
+            }
             return jolie_error(SV("Error: unknown function"));
         }
         return jolie_error(SV("Error: list is not a function call"));
@@ -883,9 +951,9 @@ Jolie_Runtime_Result jolie_eval_expr(Jolie_Env *env, Jolie_Expr *expr) {
     }
 }
 
-Jolie_Runtime_Result jolie_interpret(Jolie_Env *env, Jolie_Ast *ast) {
-    for (size_t i = 0; i < ast->count; ++i) {
-        Jolie_Expr *expr = &ast->items[i];
+Jolie_Runtime_Result jolie_eval_block(Jolie_Env *env, Jolie_Block *block) {
+    for (size_t i = 0; i < block->count; ++i) {
+        Jolie_Expr *expr = &block->items[i];
         Jolie_Runtime_Result result = jolie_eval_expr(env, expr);
         if (result.failed) {
             return result;
@@ -945,8 +1013,8 @@ int main(int argc, const char **argv) {
 
     Jolie_Env env = { .arena = arena };
 
-    Jolie_Ast ast = jolie_parse(&env, &lexer);
-    Jolie_Runtime_Result result = jolie_interpret(&env, &ast);
+    Jolie_Block block = jolie_parse(&env, &lexer);
+    Jolie_Runtime_Result result = jolie_eval_block(&env, &block);
     if (result.failed) {
         fprintf(stderr, SV_FMT"\n", SV_ARG(result.error_message));
         exit(1);
