@@ -324,7 +324,7 @@ typedef struct {
     uint64_t stack[JOLIE_STACK_CAP];
     size_t stack_pointer;
 
-    Arena arena;
+    Arena *arena;
     Jolie_Vars vars;
     Jolie_Funcs funcs;
 } Jolie_Env;
@@ -349,7 +349,7 @@ Jolie_List jolie_parse_list(Jolie_Env *env, Jolie_Lexer *lexer) {
             exit(1);
         } else {
             Jolie_Expr expr = jolie_parse_expr(env, lexer);
-            da_push(&env->arena, &expr_list, expr);
+            da_push(env->arena, &expr_list, expr);
         }
     }
 
@@ -453,7 +453,7 @@ Jolie_Block jolie_parse(Jolie_Env *env, Jolie_Lexer *lexer) {
             break;
         }
         Jolie_Expr expr = jolie_parse_expr(env, lexer);
-        da_push(&env->arena, &program, expr);
+        da_push(env->arena, &program, expr);
     }
     return program;
 }
@@ -527,7 +527,7 @@ Jolie_Runtime_Result jolie_defun_intrinsic(Jolie_Env *env, Jolie_List *list) {
 
     Jolie_Block block = {0};
     for (size_t i = 3; i < list->count; ++i) {
-        da_push(&env->arena, &block, list->items[i]);
+        da_push(env->arena, &block, list->items[i]);
     }
 
     if (jolie_gimme_func(env, name) != NULL) {
@@ -535,7 +535,7 @@ Jolie_Runtime_Result jolie_defun_intrinsic(Jolie_Env *env, Jolie_List *list) {
     }
 
     Jolie_Func func = { name, block, args };
-    da_push(&env->arena, &env->funcs, func);
+    da_push(env->arena, &env->funcs, func);
     return jolie_success(0);
 }
 
@@ -571,7 +571,7 @@ Jolie_Runtime_Result jolie_let_intrinsic(Jolie_Env *env, Jolie_List *list) {
     env->stack[env->stack_pointer] = value;
     env->stack_pointer += 1;
 
-    da_push(&env->arena, &env->vars, var);
+    da_push(env->arena, &env->vars, var);
     return jolie_success(0);
 }
 
@@ -1011,7 +1011,7 @@ int main(int argc, const char **argv) {
     String_View content = { file.data, file.length };
     Jolie_Lexer lexer = jolie_lexer_from_sv(src_filepath, content);
 
-    Jolie_Env env = { .arena = arena };
+    Jolie_Env env = { .arena = &arena };
 
     Jolie_Block block = jolie_parse(&env, &lexer);
     Jolie_Runtime_Result result = jolie_eval_block(&env, &block);

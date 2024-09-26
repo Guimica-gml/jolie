@@ -31,9 +31,9 @@
   (print (read (+ list (* i sizeof-u64))))
   (set i (+ i 1)))
 
-(print (+ 10 5))
-(print (- 10 5))
-(print (/ 10 5))
-(print (* 10 5))
+(print (+ 20 5))
+(print (- 20 5))
+(print (/ 20 5))
+(print (* 20 5))
 
 (hello-word)
