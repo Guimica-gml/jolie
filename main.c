@@ -1,6 +1,8 @@
 #define ARENA_IMPLEMENTATION
 #include "./arena.h"
 
+// TODO(nic): add scopes
+// TODO(nic): add function arguments
 // TODO(nic): have better error messages
 // TODO(nic): implement game of life (game of jolie)
 
@@ -22,19 +24,49 @@
 #define SRC_LOC_ARG(loc) (loc).filepath, (loc).row, (loc).col
 
 #define DA_INIT_CAP 512
+
 #define da_push(arena, da, item)                                        \
     do {                                                                \
         if ((da)->capacity <= (da)->count) {                            \
-            size_t old_size = (da)->capacity * sizeof(*(da)->items);    \
-            (da)->capacity = ((da)->capacity == 0) ? DA_INIT_CAP : (da)->capacity * 2; \
-            (da)->items = arena_realloc((arena), (da)->items, old_size, (da)->capacity * sizeof(*(da)->items)); \
+            size_t new_cap = ((da)->capacity == 0)                      \
+                ? DA_INIT_CAP                                           \
+                : (da)->capacity * 2;                                   \
+            (da)->items = arena_realloc(                                \
+                (arena), (da)->items,                                   \
+                (da)->capacity * sizeof(*(da)->items),                  \
+                new_cap * sizeof(*(da)->items));                        \
+            assert((da)->items != NULL && "Error: not enough RAM");     \
+            (da)->capacity = new_cap;                                   \
         }                                                               \
         (da)->items[(da)->count++] = (item);                            \
     } while(0);
 
+#define da_push_many(arena, da, items_ptr, items_count)                 \
+    do {                                                                \
+        if ((da)->capacity < (da)->count + (items_count)) {             \
+            size_t new_cap = ((da)->capacity == 0)                      \
+                ? DA_INIT_CAP                                           \
+                : (da)->capacity;                                       \
+            while (new_cap < (da)->count + (items_count)) {             \
+                new_cap *= 2;                                           \
+            }                                                           \
+            (da)->items = arena_realloc(                                \
+                (arena), (da)->items,                                   \
+                (da)->capacity * sizeof(*(da)->items),                  \
+                new_cap * sizeof(*(da)->items));                        \
+            assert((da)->items != NULL && "Error: not enough RAM");     \
+            (da)->capacity = new_cap;                                   \
+        }                                                               \
+        memcpy(                                                         \
+            (da)->items + (da)->count,                                  \
+            (items_ptr), (items_count) * sizeof(*(da)->items));         \
+        (da)->count += (items_count);                                   \
+    } while(0)
+
 typedef struct {
-    char *data;
-    size_t length;
+    char *items;
+    size_t count;
+    size_t capacity;
 } String;
 
 typedef struct {
@@ -95,7 +127,10 @@ const char *jolie_token_type_to_cstr(Jolie_Token_Type type) {
     case JOLIE_WORD: return "JOLIE_WORD";
     case JOLIE_UINT64: return "JOLIE_UINT64";
     default: {
-        fprintf(stderr, "Error: unknown token type (at `jolie_token_type_to_cstr`): %d\n", type);
+        fprintf(
+            stderr,
+            "Error: unknown token type (at `jolie_token_type_to_cstr`): %d\n",
+            type);
         exit(1);
     }
     }
@@ -108,15 +143,11 @@ Jolie_Lexer jolie_lexer_from_sv(const char *src_filepath, String_View content) {
     return lexer;
 }
 
-// WARNING(nic): this doesn't check for new line character
-String_View jolie_chop(Jolie_Lexer *lexer, size_t length) {
-    assert(lexer->index + length <= lexer->content.length);
-    String_View text = { &lexer->content.data[lexer->index], length };
-    lexer->index += length;
-    return text;
+static inline String_View sv_from_parts(const char *data, size_t length) {
+    return (String_View) { data, length };
 }
 
-void jolie_consume_char(Jolie_Lexer *lexer) {
+static inline void jolie_consume_char(Jolie_Lexer *lexer) {
     assert(lexer->index < lexer->content.length);
     if (lexer->content.data[lexer->index] == '\n') {
         lexer->line += 1;
@@ -125,26 +156,40 @@ void jolie_consume_char(Jolie_Lexer *lexer) {
     lexer->index += 1;
 }
 
+// WARNING(nic): this doesn't check for new line character
+String_View jolie_chop(Jolie_Lexer *lexer, size_t length) {
+    assert(lexer->index + length <= lexer->content.length);
+    String_View text = { &lexer->content.data[lexer->index], length };
+    lexer->index += length;
+    return text;
+}
+
 String_View jolie_chop_until(Jolie_Lexer *lexer, char ch) {
     const char *begin = lexer->content.data + lexer->index;
     size_t begin_index = lexer->index;
 
-    while (lexer->index < lexer->content.length && ch != lexer->content.data[lexer->index]) {
+    while (
+        lexer->index < lexer->content.length
+        && ch != lexer->content.data[lexer->index]
+    ) {
         jolie_consume_char(lexer);
     }
 
-    return (String_View) { begin, lexer->index - begin_index };
+    return sv_from_parts(begin, lexer->index - begin_index);
 }
 
 String_View jolie_chop_while(Jolie_Lexer *lexer, int(*predicate)(int)) {
     const char *begin = lexer->content.data + lexer->index;
     size_t begin_index = lexer->index;
 
-    while (lexer->index < lexer->content.length && predicate(lexer->content.data[lexer->index])) {
+    while (
+        lexer->index < lexer->content.length
+        && predicate(lexer->content.data[lexer->index])
+    ) {
         jolie_consume_char(lexer);
     }
 
-    return (String_View) { begin, lexer->index - begin_index };
+    return sv_from_parts(begin, lexer->index - begin_index);
 }
 
 #define JOLIE_COMMENT_CHAR ';'
@@ -195,7 +240,10 @@ again:
 
         bool escaped = false;
         while (true) {
-            if (lexer->index >= lexer->content.length || lexer->content.data[lexer->index] == '\n') {
+            if (
+                lexer->index >= lexer->content.length
+                || lexer->content.data[lexer->index] == '\n'
+            ) {
                 fprintf(
                     stderr, SRC_LOC_FMT": Error: unclosed string literal\n",
                     SRC_LOC_ARG(token.loc));
@@ -217,7 +265,7 @@ again:
         }
 
         token.type = JOLIE_STRING;
-        token.text = (String_View) { begin, lexer->index - begin_index };
+        token.text = sv_from_parts(begin, lexer->index - begin_index);
         return token;
     }
 
@@ -279,14 +327,6 @@ typedef struct {
     size_t count;
     size_t capacity;
 } Jolie_Block;
-
-uint64_t sv_to_uint64(String_View sv) {
-    uint64_t num = 0;
-    for (size_t i = 0; i < sv.length; ++i) {
-        num = (sv.data[i] - '0') + num * 10;
-    }
-    return num;
-}
 
 bool sv_eq(String_View a, String_View b) {
     if (a.length != b.length) {
@@ -372,6 +412,21 @@ Jolie_Escape_Char_Def jolie_escape_chars[] = {
 size_t jolie_escape_chars_count =
     sizeof(jolie_escape_chars)/sizeof(jolie_escape_chars[0]);
 
+uint64_t jolie_prepare_uint64(String_View sv, Jolie_Src_Loc loc) {
+    uint64_t num = 0;
+    for (size_t i = 0; i < sv.length; ++i) {
+        if (!isdigit(sv.data[i])) {
+            fprintf(
+                stderr,
+                SRC_LOC_FMT": Error: invalid literal integer `"SV_FMT"`\n",
+                SRC_LOC_ARG(loc), SV_ARG(sv));
+            exit(1);
+        }
+        num = (sv.data[i] - '0') + num * 10;
+    }
+    return num;
+}
+
 uint64_t jolie_prepare_string(Jolie_Env *env, String_View sv, Jolie_Src_Loc loc) {
     uint64_t string_begin = env->stack_pointer;
     size_t i = 1;
@@ -382,7 +437,8 @@ uint64_t jolie_prepare_string(Jolie_Env *env, String_View sv, Jolie_Src_Loc loc)
             bool exist = false;
             for (size_t j = 0; j < jolie_escape_chars_count; ++j) {
                 if (jolie_escape_chars[j].ch == next_ch) {
-                    env->stack[env->stack_pointer++] = jolie_escape_chars[j].escape_ch;
+                    env->stack[env->stack_pointer++] =
+                        jolie_escape_chars[j].escape_ch;
                     exist = true;
                     break;
                 }
@@ -390,7 +446,8 @@ uint64_t jolie_prepare_string(Jolie_Env *env, String_View sv, Jolie_Src_Loc loc)
 
             if (!exist) {
                 fprintf(
-                    stderr, SRC_LOC_FMT": Error: escape character `\\%c` is not supported\n",
+                    stderr,
+                    SRC_LOC_FMT": Error: escape character `\\%c` is not supported\n",
                     SRC_LOC_ARG(loc), next_ch);
                 exit(1);
             }
@@ -416,7 +473,7 @@ Jolie_Expr jolie_parse_expr(Jolie_Env *env, Jolie_Lexer *lexer) {
     case JOLIE_UINT64: {
         Jolie_Token token = jolie_next_token(lexer);
         expr.type = JOLIE_EXPR_UINT64;
-        expr.as.uint64 = sv_to_uint64(token.text);
+        expr.as.uint64 = jolie_prepare_uint64(token.text, token.loc);
     } break;
     case JOLIE_STRING: {
         Jolie_Token token = jolie_next_token(lexer);
@@ -498,14 +555,19 @@ Jolie_Func *jolie_gimme_func(Jolie_Env *env, String_View name) {
     return NULL;
 }
 
-typedef Jolie_Runtime_Result (*Jolie_Intrinsic_Func)(Jolie_Env *env, Jolie_List *list);
+typedef Jolie_Runtime_Result (*Jolie_Intrinsic_Func)(
+    Jolie_Env *env,
+    Jolie_List *list);
 
 Jolie_Runtime_Result jolie_defun_intrinsic(Jolie_Env *env, Jolie_List *list) {
     if (list->count < 3) {
         return jolie_error(SV("Error: invalid `defun` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("defun"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("defun"))
+    ) {
         return jolie_error(SV("Error: invalid `defun` intrinsic"));
     }
 
@@ -544,7 +606,10 @@ Jolie_Runtime_Result jolie_let_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `let` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("let"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("let"))
+    ) {
         return jolie_error(SV("Error: invalid `let` intrinsic"));
     }
 
@@ -580,7 +645,10 @@ Jolie_Runtime_Result jolie_set_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `set` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("set"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("set"))
+    ) {
         return jolie_error(SV("Error: invalid `set` intrinsic"));
     }
 
@@ -609,7 +677,10 @@ Jolie_Runtime_Result jolie_make_array_intrinsic(Jolie_Env *env, Jolie_List *list
         return jolie_error(SV("Error: invalid `make-array` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("make-array"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("make-array"))
+    ) {
         return jolie_error(SV("Error: invalid `make-array` intrinsic"));
     }
 
@@ -634,7 +705,10 @@ Jolie_Runtime_Result jolie_write_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `write` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("write"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("write"))
+    ) {
         return jolie_error(SV("Error: invalid `write` intrinsic"));
     }
 
@@ -659,7 +733,10 @@ Jolie_Runtime_Result jolie_read_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `read` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("read"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("read"))
+    ) {
         return jolie_error(SV("Error: invalid `read` intrinsic"));
     }
 
@@ -676,7 +753,10 @@ Jolie_Runtime_Result jolie_while_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `while` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("while"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("while"))
+    ) {
         return jolie_error(SV("Error: invalid `while` intrinsic"));
     }
 
@@ -706,7 +786,10 @@ Jolie_Runtime_Result jolie_if_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `if` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("if"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("if"))
+    ) {
         return jolie_error(SV("Error: invalid `if` intrinsic"));
     }
 
@@ -728,7 +811,10 @@ Jolie_Runtime_Result jolie_print_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `print` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("print"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("print"))
+    ) {
         return jolie_error(SV("Error: invalid `print` intrinsic"));
     }
 
@@ -748,7 +834,10 @@ Jolie_Runtime_Result jolie_putchar_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `putchar` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("putchar"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("putchar"))
+    ) {
         return jolie_error(SV("Error: invalid `putchar` intrinsic"));
     }
 
@@ -768,7 +857,10 @@ Jolie_Runtime_Result jolie_add_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `+` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("+"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("+"))
+    ) {
         return jolie_error(SV("Error: invalid `+` intrinsic"));
     }
 
@@ -788,7 +880,10 @@ Jolie_Runtime_Result jolie_sub_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `-` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("-"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("-"))
+    ) {
         return jolie_error(SV("Error: invalid `-` intrinsic"));
     }
 
@@ -814,7 +909,10 @@ Jolie_Runtime_Result jolie_mul_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `*` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("*"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("*"))
+    ) {
         return jolie_error(SV("Error: invalid `*` intrinsic"));
     }
 
@@ -834,7 +932,10 @@ Jolie_Runtime_Result jolie_div_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `/` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("/"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("/"))
+    ) {
         return jolie_error(SV("Error: invalid `/` intrinsic"));
     }
 
@@ -859,7 +960,10 @@ Jolie_Runtime_Result jolie_lt_intrinsic(Jolie_Env *env, Jolie_List *list) {
         return jolie_error(SV("Error: invalid `<` intrinsic"));
     }
 
-    if (list->items[0].type != JOLIE_EXPR_WORD || !sv_eq(list->items[0].as.word, SV("<"))) {
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("<"))
+    ) {
         return jolie_error(SV("Error: invalid `<` intrinsic"));
     }
 
@@ -981,11 +1085,8 @@ String read_file(Arena *arena, const char *filepath) {
     size_t count = ftell(file);
     rewind(file);
 
-    String string = {0};
-    string.data = arena_alloc(arena, count * sizeof(char));
-    string.length = count;
-
-    fread(string.data, sizeof(char), count, file);
+    char *data = malloc(count * sizeof(char));
+    fread(data, sizeof(char), count, file);
     if (ferror(file)) {
         fprintf(
             stderr, "Error: could not read '%s': %s\n",
@@ -993,6 +1094,10 @@ String read_file(Arena *arena, const char *filepath) {
         exit(1);
     }
 
+    String string = {0};
+    da_push_many(arena, &string, data, count);
+
+    free(data);
     fclose(file);
     return string;
 }
@@ -1008,7 +1113,7 @@ int main(int argc, const char **argv) {
 
     String file = read_file(&arena, src_filepath);
 
-    String_View content = { file.data, file.length };
+    String_View content = sv_from_parts(file.items, file.count);
     Jolie_Lexer lexer = jolie_lexer_from_sv(src_filepath, content);
 
     Jolie_Env env = { .arena = &arena };

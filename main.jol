@@ -12,6 +12,7 @@
 ;;   (read (+ list_ptr (* index sizeof-u64))))
 
 (defun hello-word ()
+  ;; TODO(nic): implement scopes
   (let str "Hello, world!\n")
   (while (read str)
     (putchar (read str))
