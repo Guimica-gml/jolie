@@ -1,40 +1,36 @@
 (let sizeof-u64 8)
 
-;; (defun puts (cstr_ptr)
-;;   (while (read cstr_ptr)
-;;     (putchar (read cstr_ptr))
-;;     (set cstr_ptr (+ cstr_ptr sizeof-u64))))
-;;
-;; (defun insert (list_ptr index value)
-;;   (write (+ list_ptr (* index sizeof-u64)) value))
-;;
-;; (defun at (list_ptr index)
-;;   (read (+ list_ptr (* index sizeof-u64))))
+(defun puts (cstr_ptr)
+  (while (read cstr_ptr)
+    (putchar (read cstr_ptr))
+    (set cstr_ptr (+ cstr_ptr sizeof-u64))))
 
-(defun hello-word ()
-  ;; TODO(nic): implement scopes
-  (let str "Hello, world!\n")
-  (while (read str)
-    (putchar (read str))
-    (set str (+ str sizeof-u64))))
+(defun put (list_ptr index value)
+  (write (+ list_ptr (* index sizeof-u64)) value))
+
+(defun at (list_ptr index)
+  (read (+ list_ptr (* index sizeof-u64))))
+
+(defun inc (num_ptr)
+  (write num_ptr (+ (read num_ptr) 1)))
+
+(puts "Hello, world!\n")
+(puts "Hello, jolie!\n")
 
 (let list-len 3)
 (let list (make-array list-len))
 
-(write (+ list (* 0 sizeof-u64)) 12)
-(write (+ list (* 1 sizeof-u64)) 13)
-(write (+ list (* 2 sizeof-u64)) 14)
+(put list 0 12)
+(put list 1 13)
+(put list 2 14)
 
 (print list)
-
 (let i 0)
 (while (< i list-len)
-  (print (read (+ list (* i sizeof-u64))))
+  (print (at list i))
   (set i (+ i 1)))
 
 (print (+ 20 5))
 (print (- 20 5))
 (print (/ 20 5))
 (print (* 20 5))
-
-(hello-word)
