@@ -1194,7 +1194,6 @@ Jolie_Runtime_Result jolie_eval_expr(
         if (var != NULL) {
             return jolie_success(*var->address);
         }
-        printf(SV_FMT"\n", SV_ARG(expr->as.word));
         return jolie_error(SV("Error: unknown variable"));
     } break;
     default: {
