@@ -823,6 +823,36 @@ Jolie_Runtime_Result jolie_read_intrinsic(
     return jolie_success(*(uint64_t*)(address));
 }
 
+Jolie_Runtime_Result jolie_get_ref_intrinsic(
+    Arena *arena,
+    Jolie_Stack *stack,
+    Jolie_Scope *scope,
+    Jolie_List *list)
+{
+    if (list->count != 2) {
+        return jolie_error(SV("Error: invalid `&` intrinsic"));
+    }
+
+    if (
+        list->items[0].type != JOLIE_EXPR_WORD
+        || !sv_eq(list->items[0].as.word, SV("&"))
+    ) {
+        return jolie_error(SV("Error: invalid `&` intrinsic"));
+    }
+
+    if (list->items[1].type != JOLIE_EXPR_WORD) {
+        return jolie_error(SV("Error: invalid `&` intrinsic"));
+    }
+    String_View name = list->items[1].as.word;
+
+    Jolie_Var *var = jolie_gimme_var(scope, name);
+    if (var == NULL) {
+        return jolie_error(SV("Error: variable not declared"));
+    }
+
+    return jolie_success((uint64_t)var->address);
+}
+
 Jolie_Runtime_Result jolie_while_intrinsic(
     Arena *arena,
     Jolie_Stack *stack,
@@ -1125,6 +1155,7 @@ Jolie_Intrinsic jolie_intrinsics[] = {
     { .name = SV_STATIC("make-array"), .func = jolie_make_array_intrinsic },
     { .name = SV_STATIC("write"), .func = jolie_write_intrinsic },
     { .name = SV_STATIC("read"), .func = jolie_read_intrinsic },
+    { .name = SV_STATIC("&"), .func = jolie_get_ref_intrinsic },
     { .name = SV_STATIC("if"), .func = jolie_if_intrinsic },
     { .name = SV_STATIC("while"), .func = jolie_while_intrinsic },
     { .name = SV_STATIC("print"), .func = jolie_print_intrinsic },
@@ -1164,6 +1195,9 @@ Jolie_Runtime_Result jolie_eval_expr(
             Jolie_Func *func = jolie_gimme_func(scope, func_name);
             if (func != NULL) {
                 Jolie_Scope func_scope = jolie_make_parallel_scope(scope);
+                if (list->count != func->arg_names.count + 1) {
+                    return jolie_error(SV("Error: wrong number of arguments"));
+                }
                 for (size_t i = 0; i < func->arg_names.count; ++i) {
                     Jolie_Runtime_Result result = jolie_eval_expr(
                         arena, stack, scope, &list->items[i + 1]);

@@ -1,17 +1,17 @@
 (let sizeof-u64 8)
 
-(defun puts (cstr_ptr)
+(defun puts(cstr_ptr)
   (while (read cstr_ptr)
     (putchar (read cstr_ptr))
     (set cstr_ptr (+ cstr_ptr sizeof-u64))))
 
-(defun put (list_ptr index value)
+(defun put(list_ptr index value)
   (write (+ list_ptr (* index sizeof-u64)) value))
 
-(defun at (list_ptr index)
+(defun at(list_ptr index)
   (read (+ list_ptr (* index sizeof-u64))))
 
-(defun inc (num_ptr)
+(defun inc(num_ptr)
   (write num_ptr (+ (read num_ptr) 1)))
 
 (puts "Hello, world!\n")
@@ -28,7 +28,7 @@
 (let i 0)
 (while (< i list-len)
   (print (at list i))
-  (set i (+ i 1)))
+  (inc (& i)))
 
 (print (+ 20 5))
 (print (- 20 5))
