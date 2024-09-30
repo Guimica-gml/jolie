@@ -1,8 +1,6 @@
 #define ARENA_IMPLEMENTATION
 #include "./arena.h"
 
-// TODO(nic): add scopes
-// TODO(nic): add function arguments
 // TODO(nic): have better error messages
 // TODO(nic): implement game of life (game of jolie)
 
@@ -859,7 +857,10 @@ Jolie_Runtime_Result jolie_while_intrinsic(
         }
 
         Jolie_Scope block_scope = jolie_make_inherited_scope(scope);
-        jolie_eval_block(arena, stack, &block_scope, &block);
+        result = jolie_eval_block(arena, stack, &block_scope, &block);
+        if (result.failed) {
+            return result;
+        }
     }
 
     return jolie_success(0);
@@ -1210,17 +1211,19 @@ Jolie_Runtime_Result jolie_eval_block(
     Jolie_Block *block)
 {
     size_t body_stack_index = stack->count;
+    Jolie_Runtime_Result result = {0};
 
     for (size_t i = 0; i < block->count; ++i) {
         Jolie_Expr *expr = &block->items[i];
-        Jolie_Runtime_Result result = jolie_eval_expr(arena, stack, scope, expr);
+        result = jolie_eval_expr(arena, stack, scope, expr);
         if (result.failed) {
             return result;
         }
     }
 
     stack->count = body_stack_index;
-    return jolie_success(0);
+    // Returns the evaluation of the last statement of the body
+    return result;
 }
 
 String read_file(Arena *arena, const char *filepath) {
