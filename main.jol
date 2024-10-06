@@ -2,8 +2,10 @@
 
 (defun puts(cstr_ptr)
   (while (read cstr_ptr)
-    (putchar (read cstr_ptr))
+    (putc (read cstr_ptr))
     (set cstr_ptr (+ cstr_ptr sizeof-u64))))
+
+(defun puts())
 
 (defun put(list_ptr index value)
   (write (+ list_ptr (* index sizeof-u64)) value))
@@ -24,13 +26,13 @@
 (put list 1 13)
 (put list 2 14)
 
-(print list)
+(putd list)
 (let i 0)
 (while (< i list-len)
-  (print (at list i))
+  (putd (at list i))
   (inc (& i)))
 
-(print (+ 20 5))
-(print (- 20 5))
-(print (/ 20 5))
-(print (* 20 5))
+(putd (+ 20 5))
+(putd (- 20 5))
+(putd (/ 20 5))
+(putd (* 20 5))

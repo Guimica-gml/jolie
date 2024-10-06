@@ -2,7 +2,7 @@
 (let b 1)
 
 (let i 0)
-(while (< i 100)
+(while (< i 20)
   (let c (+ a b))
   (print a)
   (set a b)

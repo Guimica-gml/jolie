@@ -136,9 +136,12 @@ const char *jolie_token_type_to_cstr(Jolie_Token_Type type) {
 }
 
 void str_vprintf(Arena *arena, String *str, const char *fmt, va_list args) {
-    int str_size = vsnprintf(NULL, 0, fmt, args);
-    char *temp = malloc(str_size);
-    vsprintf(temp, fmt, args);
+    va_list copy;
+    va_copy(copy, args);
+    int str_size = vsnprintf(NULL, 0, fmt, copy);
+    va_end(copy);
+    char *temp = malloc((str_size + 1) * sizeof(char));
+    vsnprintf(temp, str_size, fmt, args);
     da_push_many(arena, str, temp, str_size);
     free(temp);
 }
@@ -219,7 +222,7 @@ int jolie_is_word(int ch) {
 
 // Yes, X macros make me feel smart
 #define JOLIE_RESULT_TYPES                      \
-    X(Jolie_Lexer_Result, lexer, Jolie_Token);  \
+    X(Jolie_Lexer_Result, lexer, Jolie_Token)   \
     X(Jolie_Uint64_Result, uint64, uint64_t)    \
     X(Jolie_Runtime_Result, runtime, uint64_t)
 
@@ -243,7 +246,7 @@ int jolie_is_word(int ch) {
         va_end(args);                                                   \
         return result;                                                  \
     }
-JOLIE_RESULT_TYPES;
+JOLIE_RESULT_TYPES
 #undef X
 
 Jolie_Token jolie_next_token(Jolie_Lexer *lexer) {
@@ -626,11 +629,7 @@ Jolie_Func *jolie_gimme_func(Jolie_Scope *scope, String_View name) {
 }
 
 typedef Jolie_Runtime_Result (*Jolie_Intrinsic_Func)(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc);
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc);
 
 Jolie_Runtime_Result jolie_defun_intrinsic(
     Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
@@ -695,11 +694,7 @@ Jolie_Runtime_Result jolie_defun_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_let_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
     if (list->count != 3) {
         return jolie_runtime_error(arena, "Error: invalid `let` intrinsic");
@@ -731,7 +726,7 @@ Jolie_Runtime_Result jolie_let_intrinsic(
         return jolie_runtime_error(arena, "Error: stack overflow");
     }
 
-    Jolie_Var var = { name, stack->items + stack->count };
+    Jolie_Var var = { name, stack->items + stack->count, loc };
     stack->items[stack->count++] = value;
 
     da_push(arena, &scope->vars, var);
@@ -739,12 +734,9 @@ Jolie_Runtime_Result jolie_let_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_set_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count != 3) {
         return jolie_runtime_error(arena, "Error: invalid `set` intrinsic");
     }
@@ -777,12 +769,9 @@ Jolie_Runtime_Result jolie_set_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_make_array_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope,Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count != 2) {
         return jolie_runtime_error(arena, "Error: invalid `make-array` intrinsic");
     }
@@ -811,12 +800,9 @@ Jolie_Runtime_Result jolie_make_array_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_write_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count != 3) {
         return jolie_runtime_error(arena, "Error: invalid `write` intrinsic");
     }
@@ -845,12 +831,9 @@ Jolie_Runtime_Result jolie_write_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_read_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count != 2) {
         return jolie_runtime_error(arena, "Error: invalid `read` intrinsic");
     }
@@ -871,12 +854,10 @@ Jolie_Runtime_Result jolie_read_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_get_ref_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) stack;
+    (void) loc;
     if (list->count != 2) {
         return jolie_runtime_error(arena, "Error: invalid `&` intrinsic");
     }
@@ -902,12 +883,9 @@ Jolie_Runtime_Result jolie_get_ref_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_while_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count < 2) {
         return jolie_runtime_error(arena, "Error: invalid `while` intrinsic");
     }
@@ -946,12 +924,9 @@ Jolie_Runtime_Result jolie_while_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_if_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count != 4) {
         return jolie_runtime_error(arena, "Error: invalid `if` intrinsic");
     }
@@ -976,22 +951,19 @@ Jolie_Runtime_Result jolie_if_intrinsic(
     }
 }
 
-Jolie_Runtime_Result jolie_print_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+Jolie_Runtime_Result jolie_putd_intrinsic(
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count < 2) {
-        return jolie_runtime_error(arena, "Error: invalid `print` intrinsic");
+        return jolie_runtime_error(arena, "Error: invalid `putd` intrinsic");
     }
 
     if (
         list->items[0].type != JOLIE_EXPR_WORD
-        || !sv_eq(list->items[0].as.word, SV("print"))
+        || !sv_eq(list->items[0].as.word, SV("putd"))
     ) {
-        return jolie_runtime_error(arena, "Error: invalid `print` intrinsic");
+        return jolie_runtime_error(arena, "Error: invalid `putd` intrinsic");
     }
 
     for (size_t i = 1; i < list->count; ++i) {
@@ -1006,22 +978,19 @@ Jolie_Runtime_Result jolie_print_intrinsic(
     return jolie_runtime_success(0);
 }
 
-Jolie_Runtime_Result jolie_putchar_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+Jolie_Runtime_Result jolie_putc_intrinsic(
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count < 2) {
-        return jolie_runtime_error(arena, "Error: invalid `putchar` intrinsic");
+        return jolie_runtime_error(arena, "Error: invalid `putc` intrinsic");
     }
 
     if (
         list->items[0].type != JOLIE_EXPR_WORD
-        || !sv_eq(list->items[0].as.word, SV("putchar"))
+        || !sv_eq(list->items[0].as.word, SV("putc"))
     ) {
-        return jolie_runtime_error(arena, "Error: invalid `putchar` intrinsic");
+        return jolie_runtime_error(arena, "Error: invalid `putc` intrinsic");
     }
 
     for (size_t i = 1; i < list->count; ++i) {
@@ -1037,12 +1006,9 @@ Jolie_Runtime_Result jolie_putchar_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_add_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count < 2) {
         return jolie_runtime_error(arena, "Error: invalid `+` intrinsic");
     }
@@ -1067,12 +1033,9 @@ Jolie_Runtime_Result jolie_add_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_sub_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count < 2) {
         return jolie_runtime_error(arena, "Error: invalid `-` intrinsic");
     }
@@ -1103,12 +1066,9 @@ Jolie_Runtime_Result jolie_sub_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_mul_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count < 2) {
         return jolie_runtime_error(arena, "Error: invalid `*` intrinsic");
     }
@@ -1133,12 +1093,9 @@ Jolie_Runtime_Result jolie_mul_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_div_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count < 2) {
         return jolie_runtime_error(arena, "Error: invalid `/` intrinsic");
     }
@@ -1168,12 +1125,9 @@ Jolie_Runtime_Result jolie_div_intrinsic(
 }
 
 Jolie_Runtime_Result jolie_lt_intrinsic(
-    Arena *arena,
-    Jolie_Stack *stack,
-    Jolie_Scope *scope,
-    Jolie_List *list,
-    Jolie_Src_Loc loc)
+    Arena *arena, Jolie_Stack *stack, Jolie_Scope *scope, Jolie_List *list, Jolie_Src_Loc loc)
 {
+    (void) loc;
     if (list->count != 3) {
         return jolie_runtime_error(arena, "Error: invalid `<` intrinsic");
     }
@@ -1215,8 +1169,8 @@ Jolie_Intrinsic jolie_intrinsics[] = {
     { .name = SV_STATIC("&"), .func = jolie_get_ref_intrinsic },
     { .name = SV_STATIC("if"), .func = jolie_if_intrinsic },
     { .name = SV_STATIC("while"), .func = jolie_while_intrinsic },
-    { .name = SV_STATIC("print"), .func = jolie_print_intrinsic },
-    { .name = SV_STATIC("putchar"), .func = jolie_putchar_intrinsic },
+    { .name = SV_STATIC("putd"), .func = jolie_putd_intrinsic },
+    { .name = SV_STATIC("putc"), .func = jolie_putc_intrinsic },
     { .name = SV_STATIC("+"), .func = jolie_add_intrinsic },
     { .name = SV_STATIC("-"), .func = jolie_sub_intrinsic },
     { .name = SV_STATIC("*"), .func = jolie_mul_intrinsic },
@@ -1268,7 +1222,8 @@ Jolie_Runtime_Result jolie_eval_expr(
                         return jolie_runtime_error(arena, "Error: stack overflow");
                     }
                     String_View name = func->arg_names.items[i].as.word;
-                    Jolie_Var var = { name, stack->items + stack->count };
+                    Jolie_Src_Loc loc = func->arg_names.items[i].loc;
+                    Jolie_Var var = { name, stack->items + stack->count, loc };
                     stack->items[stack->count++] = arg;
 
                     da_push(arena, &func_scope.vars, var);
