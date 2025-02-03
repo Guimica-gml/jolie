@@ -5,8 +5,6 @@
     (putc (read cstr_ptr))
     (set cstr_ptr (+ cstr_ptr sizeof-u64))))
 
-(defun puts())
-
 (defun put(list_ptr index value)
   (write (+ list_ptr (* index sizeof-u64)) value))
 
@@ -20,7 +18,7 @@
 (puts "Hello, jolie!\n")
 
 (let list-len 3)
-(let list (make-array list-len))
+(let list (make-array list-len)) ; stack allocated
 
 (put list 0 12)
 (put list 1 13)

@@ -1,13 +1,7 @@
-#!/usr/bin/env sh
-set -e
+#!/usr/bin/sh
+set -xe
 
-CFLAGS="-Wall -Wextra -pedantic -ggdb -std=c11"
+CFLAGS="-Wall -Wextra -pedantic -ggdb -std=c99"
 CLIBS=""
 
-gcc $CFLAGS -o jolie main.c $CLIBS
-
-if [ "$1" = "run" ]
-then
-    shift
-    ./jolie "$@"
-fi
+gcc $CFLAGS -o jolie src/main.c src/utils.c $CLIBS
