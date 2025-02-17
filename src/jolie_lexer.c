@@ -8,7 +8,7 @@ typedef struct {
 } Jolie_Literal_Token;
 
 static_assert(JOLIE_TOKEN_COUNT == 27, "Count of tokens changed");
-Jolie_Literal_Token jolie_literal_tokens[] = {
+Jolie_Literal_Token jolie_symbols[] = {
     { .text = SV_STATIC("("), .type = JOLIE_PAREN_OPEN },
     { .text = SV_STATIC(")"), .type = JOLIE_PAREN_CLOSE },
     { .text = SV_STATIC("{"), .type = JOLIE_CURLY_OPEN },
@@ -25,15 +25,20 @@ Jolie_Literal_Token jolie_literal_tokens[] = {
     { .text = SV_STATIC("/"), .type = JOLIE_SLASH },
     { .text = SV_STATIC(","), .type = JOLIE_COMMA },
     { .text = SV_STATIC("<"), .type = JOLIE_LESS_THAN },
+};
+size_t jolie_symbols_count =
+    sizeof(jolie_symbols)/sizeof(*jolie_symbols);
 
+static_assert(JOLIE_TOKEN_COUNT == 27, "Count of tokens changed");
+Jolie_Literal_Token jolie_keywords[] = {
     { .text = SV_STATIC("let"), .type = JOLIE_LET },
     { .text = SV_STATIC("proc"), .type = JOLIE_PROC },
     { .text = SV_STATIC("if"), .type = JOLIE_IF },
     { .text = SV_STATIC("while"), .type = JOLIE_WHILE },
     { .text = SV_STATIC("return"), .type = JOLIE_RETURN },
 };
-size_t jolie_literal_tokens_count =
-    sizeof(jolie_literal_tokens)/sizeof(*jolie_literal_tokens);
+size_t jolie_keywords_count =
+    sizeof(jolie_keywords)/sizeof(*jolie_keywords);
 
 static_assert(JOLIE_TOKEN_COUNT == 27, "Count of tokens changed");
 const char *jolie_token_type_to_cstr(Jolie_Token_Type type) {
@@ -151,10 +156,10 @@ again:
         goto again;
     }
 
-    for (size_t i = 0; i < jolie_literal_tokens_count; ++i) {
-        if (jolie_starts_with(lexer, jolie_literal_tokens[i].text)) {
-            token.type = jolie_literal_tokens[i].type;
-            token.text = jolie_chop(lexer, jolie_literal_tokens[i].text.size);
+    for (size_t i = 0; i < jolie_symbols_count; ++i) {
+        if (jolie_starts_with(lexer, jolie_symbols[i].text)) {
+            token.type = jolie_symbols[i].type;
+            token.text = jolie_chop(lexer, jolie_symbols[i].text.size);
             return token;
         }
     }
@@ -189,8 +194,16 @@ again:
     }
 
     if (jolie_is_word_head(peek)) {
-        token.type = JOLIE_WORD;
         token.text = jolie_chop_while(lexer, jolie_is_word_body);
+
+        for (size_t i = 0; i < jolie_keywords_count; ++i) {
+            if (sv_eq(token.text, jolie_keywords[i].text)) {
+                token.type = jolie_keywords[i].type;
+                return token;
+            }
+        }
+
+        token.type = JOLIE_WORD;
         return token;
     }
 
