@@ -29,10 +29,20 @@ Jolie_Scope jolie_make_scope(Jolie_Scope *parent) {
     return scope;
 }
 
-Jolie_Var *jolie_search_scope(Jolie_Scope *scope, bool local_only) {
-    (void) scope;
-    (void) local_only;
-    assert(0 && "unimplemented");
+Jolie_Var *jolie_search_scope(Jolie_Scope *scope, String_View name, bool local_only) {
+    while (scope != NULL) {
+        for (size_t i = 0; i < scope->count; ++i) {
+            Jolie_Var *var = &scope->items[i];
+            if (sv_eq(var->name, name)) {
+                return var;
+            }
+        }
+        if (local_only) {
+            break;
+        }
+        scope = scope->next;
+    }
+    return NULL;
 }
 
 Jolie_Proc *jolie_find_proc(Jolie_Ast *ast, String_View proc_name) {
@@ -67,7 +77,7 @@ void str_append_type_error(
     str_append_fmt(arena, str, "%s", c);
 }
 
-Jolie_Var *jolie_search_scope(Jolie_Scope *scope, bool local_only);
+Jolie_Var *jolie_search_scope(Jolie_Scope *scope, String_View name, bool local_only);
 Jolie_Type jolie_check_proc_call(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_Proc_Call *proc_call, Jolie_Loc loc);
 Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_Expr *expr);
 void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_Block *block, Jolie_Type return_type);
@@ -119,7 +129,17 @@ Jolie_Type jolie_check_proc_call(Arena *arena, Jolie_Scope *scope, Jolie_Ast *as
 Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_Expr *expr) {
     switch (expr->type) {
     case JOLIE_EXPR_WORD: {
-        assert(0 && "unimplemented");
+        String_View name = expr->as.word;
+        Jolie_Var *var = jolie_search_scope(scope, name, false);
+        if (var == NULL) {
+            ast->failed = true;
+            str_append_fmt(
+                arena, &ast->error_message,
+                JOLIE_LOC_FMT": Error: variable not defined `"SV_FMT"`\n",
+                JOLIE_LOC_ARG(expr->loc), SV_ARG(name));
+            return (Jolie_Type) {0};
+        }
+        return var->type;
     } break;
     case JOLIE_EXPR_UINT64: {
         return jolie_type(JOLIE_TYPE_UINT64, 0);
@@ -136,7 +156,25 @@ Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jo
         return type;
     } break;
     case JOLIE_EXPR_DEREF: {
-        assert(0 && "unimplemented");
+        Jolie_Expr_Deref *deref = &expr->as.deref;
+        Jolie_Type type = jolie_check_expr(arena, scope, ast, deref->expr);
+        if (type.indirection_level <= 0) {
+            ast->failed = true;
+            str_append_fmt(
+                arena, &ast->error_message,
+                JOLIE_LOC_FMT": Error: cannot derefence non-pointer type\n",
+                JOLIE_LOC_ARG(expr->loc));
+            return (Jolie_Type) {0};
+        }
+        return jolie_type(type.id, type.indirection_level - 1);
+    } break;
+    case JOLIE_EXPR_CAST: {
+        Jolie_Expr_Cast *cast = &expr->as.cast;
+        jolie_check_expr(arena, scope, ast, cast->expr);
+        if (ast->failed) {
+            return (Jolie_Type) {0};
+        }
+        return cast->type;
     } break;
     case JOLIE_EXPR_BINARY_OP: {
         Jolie_Binary_Op *op = &expr->as.bin_op;
@@ -154,7 +192,6 @@ Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jo
         if (!jolie_type_eq(lh_type, rh_type)) {
             ast->failed = true;
             str_append_type_error(
-
                 arena, &ast->error_message, expr->loc,
                 ": Error: operands expect both expression to have the same type, but left expression is of type `",
                 lh_type, "` and right expression is of type `", rh_type, "`\n");
@@ -205,10 +242,59 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
             }
         } break;
         case JOLIE_STMT_LET: {
-            assert(0 && "unimplemented");
+            Jolie_Stmt_Let *let = &stmt->as.let;
+
+            Jolie_Type type = jolie_check_expr(arena, scope, ast, &let->expr);
+            if (ast->failed) {
+                return;
+            }
+
+            {
+                Jolie_Var *var = jolie_search_scope(scope, let->name, true);
+                if (var != NULL) {
+                    ast->failed = true;
+                    str_append_fmt(
+                        arena, &ast->error_message,
+                        JOLIE_LOC_FMT": Error: variable already defined `"SV_FMT"`\n",
+                        JOLIE_LOC_ARG(stmt->loc), SV_ARG(let->name));
+                    return;
+                }
+            }
+
+            if (!jolie_type_eq(type, let->type)) {
+                ast->failed = true;
+                str_append_type_error(
+                    arena, &ast->error_message, stmt->loc,
+                    ": Error: variable declared with type `", let->type,
+                    "`, but expression is of type `", type, "`\n");
+                return;
+            }
+
+            Jolie_Var var = { let->name, let->type };
+            arena_da_append(arena, scope, var);
         } break;
         case JOLIE_STMT_WHILE: {
-            assert(0 && "unimplemented");
+            Jolie_Stmt_While *while_ = &stmt->as.while_;
+            Jolie_Type cond_type = jolie_check_expr(arena, scope, ast, &while_->condition);
+            if (ast->failed) {
+                return;
+            }
+
+            Jolie_Type expected = jolie_type(JOLIE_TYPE_BOOL, 0);
+            if (!jolie_type_eq(cond_type, expected)) {
+                ast->failed = true;
+                str_append_type_error(
+                    arena, &ast->error_message, while_->condition.loc,
+                    ": Error: while condition expects an expression of type `", expected,
+                    "`, but expression is of type `", cond_type, "`\n");
+                return;
+            }
+
+            Jolie_Scope sub_scope = jolie_make_scope(scope);
+            jolie_check_block(arena, &sub_scope, ast, &while_->block, return_type);
+            if (ast->failed) {
+                return;
+            }
         } break;
         case JOLIE_STMT_PROC_CALL: {
             Jolie_Proc_Call *proc_call = &stmt->as.proc_call;
@@ -218,7 +304,27 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
             }
         } break;
         case JOLIE_STMT_ASSIGN: {
-            assert(0 && "unimplemented");
+            Jolie_Stmt_Assign *assign = &stmt->as.assign;
+
+            Jolie_Var *var = jolie_search_scope(scope, assign->name, false);
+            if (var == NULL) {
+                ast->failed = true;
+                str_append_fmt(
+                    arena, &ast->error_message,
+                    JOLIE_LOC_FMT": Error: variable not defined `"SV_FMT"`\n",
+                    JOLIE_LOC_ARG(stmt->loc), SV_ARG(assign->name));
+                return;
+            }
+
+            Jolie_Type type = jolie_check_expr(arena, scope, ast, &assign->expr);
+            if (!jolie_type_eq(type, var->type)) {
+                ast->failed = true;
+                str_append_type_error(
+                    arena, &ast->error_message, stmt->loc,
+                    ": Error: variable declared with type `", var->type,
+                    "`, but expression is of type `", type, "`\n");
+                return;
+            }
         } break;
         case JOLIE_STMT_RETURN: {
             Jolie_Stmt_Return *return_ = &stmt->as.return_;
@@ -261,7 +367,7 @@ void jolie_check_ast(Arena *arena, Jolie_Ast *ast) {
     for (size_t i = 0; i < ast->procs.count; ++i) {
         Jolie_Proc *proc = &ast->procs.items[i];
         if (sv_eq(proc->name, SV(JOLIE_ENTRY_POINT_PROC))) {
-            // TODO(nic): check parameters and return type
+            // TODO(nic): check parameters and return type of the main proc
             contains_main = true;
         }
 

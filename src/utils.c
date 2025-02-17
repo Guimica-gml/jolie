@@ -27,7 +27,7 @@ void str_append_vfmt(Arena *arena, String *str, const char *fmt, va_list args) {
     va_copy(copy, args);
     int str_size = vsnprintf(NULL, 0, fmt, copy);
     va_end(copy);
-    char temp[(str_size + 1) * sizeof(char)];
+    char *temp = _alloca((str_size + 1) * sizeof(char));
     vsnprintf(temp, str_size + 1, fmt, args);
     arena_da_append_many(arena, str, temp, str_size);
 }
@@ -40,21 +40,21 @@ void str_append_fmt(Arena *arena, String *str, const char *fmt, ...) {
 }
 
 int64_t sv_to_int64(String_View sv) {
-    char int64_string[sv.size + 1];
+    char *int64_string = _alloca(sv.size + 1);
     memcpy(int64_string, sv.data, sv.size);
     int64_string[sv.size] = '\0';
     return atoll(int64_string);
 }
 
 uint64_t sv_to_uint64(String_View sv) {
-    char uint64_string[sv.size + 1];
+    char *uint64_string = _alloca(sv.size + 1);
     memcpy(uint64_string, sv.data, sv.size);
     uint64_string[sv.size] = '\0';
     return strtoull(uint64_string, NULL, 10);
 }
 
 double sv_to_decimal(String_View sv) {
-    char decimal_string[sv.size + 1];
+    char *decimal_string = _alloca(sv.size + 1);
     memcpy(decimal_string, sv.data, sv.size);
     decimal_string[sv.size] = '\0';
     return strtod(decimal_string, NULL);

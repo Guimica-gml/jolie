@@ -1,13 +1,29 @@
-proc fuck(): ^uint8 {
-    return "fuck";
+proc urdad(a: ^uint8) {
 }
 
-proc puts(a: uint64) {
+proc print_urmom(urmom: uint64) {
+}
+
+proc putc(urmom: uint8) {
+}
+
+proc puts(cstr: ^uint8) {
+    while cast(bool) ^cstr {
+        putc(^cstr);
+        cstr = + cstr cast(^uint8) 1;
+    }
+}
+
+proc putd(a: uint64) {
+    while < 1 0 {
+        let i: uint64 = 0;
+        print_urmom(i);
+    }
 }
 
 proc main() {
     if < 0 1 {
-        puts(12);
+        puts("12");
     }
 
     let urmom: uint64 = urdad("reversed");

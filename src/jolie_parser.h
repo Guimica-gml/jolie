@@ -13,6 +13,11 @@ typedef enum {
 } Jolie_Type_Id;
 
 typedef struct {
+    Jolie_Type_Id id;
+    size_t indirection_level;
+} Jolie_Type;
+
+typedef struct {
     String_View name;
     size_t size;
 } Jolie_Buintin_Type_Info;
@@ -46,6 +51,7 @@ typedef enum {
     JOLIE_EXPR_STRING_INDEX,
     JOLIE_EXPR_PROC_CALL,
     JOLIE_EXPR_DEREF,
+    JOLIE_EXPR_CAST,
     JOLIE_EXPR_BINARY_OP,
 } Jolie_Expr_Type;
 
@@ -56,9 +62,13 @@ typedef struct {
 } Jolie_Binary_Op;
 
 typedef struct {
-    size_t count;
-    String_View word;
+    Jolie_Expr *expr;
 } Jolie_Expr_Deref;
+
+typedef struct {
+    Jolie_Type type;
+    Jolie_Expr *expr;
+} Jolie_Expr_Cast;
 
 typedef union {
     String_View word;
@@ -66,6 +76,7 @@ typedef union {
     size_t string_index;
     Jolie_Proc_Call proc_call;
     Jolie_Expr_Deref deref;
+    Jolie_Expr_Cast cast;
     Jolie_Binary_Op bin_op;
 } Jolie_Expr_As;
 
@@ -74,11 +85,6 @@ struct Jolie_Expr {
     Jolie_Expr_Type type;
     Jolie_Expr_As as;
 };
-
-typedef struct {
-    Jolie_Type_Id id;
-    size_t indirection_level;
-} Jolie_Type;
 
 typedef struct Jolie_Stmt Jolie_Stmt;
 typedef struct {

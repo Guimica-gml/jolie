@@ -37,6 +37,7 @@ typedef enum {
     JOLIE_IF,
     JOLIE_WHILE,
     JOLIE_RETURN,
+    JOLIE_CAST,
 
     // Literals
     JOLIE_UINT64_LIT,

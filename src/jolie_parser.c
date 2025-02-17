@@ -10,7 +10,7 @@ Jolie_Buintin_Type_Info jolie_builtin_types[JOLIE_TYPE_COUNT] = {
 
 Jolie_Token jolie_parse_next_token(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
     Jolie_Token token = jolie_next_token(lexer);
-    static_assert(JOLIE_TOKEN_COUNT == 27, "Count of tokens changed");
+    static_assert(JOLIE_TOKEN_COUNT == 28, "Count of tokens changed");
     switch (token.type) {
     case JOLIE_UNCLOSED_STRING: {
         ast->failed = true;
@@ -159,29 +159,47 @@ Jolie_Expr jolie_parse_expr(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
         }
     } break;
     case JOLIE_CARET: {
-        expr.type = JOLIE_EXPR_DEREF;
-        while (true) {
-            Jolie_Token token = jolie_parse_next_token(arena, ast, lexer);
-            if (ast->failed) {
-                return expr;
-            }
-            if (token.type == JOLIE_CARET) {
-                expr.as.deref.count += 1;
-            } else if (token.type == JOLIE_WORD) {
-                expr.as.deref.word = token.text;
-                break;
-            } else {
-                ast->failed = true;
-                str_append_fmt(
-                    arena, &ast->error_message,
-                    JOLIE_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected %s or %s\n",
-                    JOLIE_LOC_ARG(token.loc), SV_ARG(token.text),
-                    jolie_token_type_to_cstr(JOLIE_CARET),
-                    jolie_token_type_to_cstr(JOLIE_WORD));
-                return expr;
-            }
+        jolie_parse_expect(arena, ast, lexer, JOLIE_CARET);
+        if (ast->failed) {
+            return expr;
         }
-        assert(expr.as.deref.count >= 1 && "bug in the parser");
+        expr.type = JOLIE_EXPR_DEREF;
+        expr.as.deref.expr = arena_alloc(arena, sizeof(Jolie_Expr));
+
+        *expr.as.deref.expr = jolie_parse_expr(arena, ast, lexer);
+        if (ast->failed) {
+            return expr;
+        }
+    } break;
+    case JOLIE_CAST: {
+        jolie_parse_expect(arena, ast, lexer, JOLIE_CAST);
+        if (ast->failed) {
+            return expr;
+        }
+
+        jolie_parse_expect(arena, ast, lexer, JOLIE_PAREN_OPEN);
+        if (ast->failed) {
+            return expr;
+        }
+
+        Jolie_Type type = jolie_parse_type(arena, ast, lexer);
+        if (ast->failed) {
+            return expr;
+        }
+
+        jolie_parse_expect(arena, ast, lexer, JOLIE_PAREN_CLOSE);
+        if (ast->failed) {
+            return expr;
+        }
+
+        expr.type = JOLIE_EXPR_CAST;
+        expr.as.cast.type = type;
+        expr.as.cast.expr = arena_alloc(arena, sizeof(Jolie_Expr));
+
+        *expr.as.cast.expr = jolie_parse_expr(arena, ast, lexer);
+        if (ast->failed) {
+            return expr;
+        }
     } break;
     case JOLIE_PLUS:
     case JOLIE_DASH:
