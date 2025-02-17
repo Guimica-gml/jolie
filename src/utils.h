@@ -1,10 +1,13 @@
 #ifndef UTILS_H_
 #define UTILS_H_
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <stdarg.h>
+#include <assert.h>
 
 #include "./arena.h"
 
@@ -26,11 +29,14 @@
         (da)->count += (items_count);                                                         \
     } while (0)
 
-#define SV_FMT "%.*s"
-#define SV_ARG(sv) (int) sv.size, sv.data
-
 #define SV(cstr) ((String_View) { .data = (cstr), .size = strlen(cstr) })
 #define SV_STATIC(cstr) { .data = (cstr), .size = sizeof(cstr) - 1 }
+
+#define SV_FMT "%.*s"
+#define SV_ARG(sv) (int) (sv).size, (sv).data
+
+#define STR_FMT "%.*s"
+#define STR_ARG(str) (int) (str)->count, (str)->items
 
 #define str_append_char(a, str, ch) arena_da_append((a), (str), ch)
 #define str_append_sv(a, str, sv) arena_da_append_many((a), (str), (sv).data, (sv).size)
@@ -55,8 +61,10 @@ typedef struct {
 } String_View;
 
 int64_t sv_to_int64(String_View sv);
+uint64_t sv_to_uint64(String_View sv);
 double sv_to_decimal(String_View sv);
 
+String_View sv_from_parts(const char *data, size_t size);
 bool sv_find(String_View sv, char ch, size_t *index);
 bool sv_find_rev(String_View sv, char ch, size_t *index);
 bool sv_eq(String_View a, String_View b);

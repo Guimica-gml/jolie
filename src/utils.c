@@ -1,8 +1,5 @@
 #include "./utils.h"
 
-#include <stdio.h>
-#include <string.h>
-
 String str_with_cap(Arena *arena, size_t cap) {
     String str = {0};
     str.items = arena_alloc(arena, cap * sizeof(char));
@@ -49,11 +46,22 @@ int64_t sv_to_int64(String_View sv) {
     return atoll(int64_string);
 }
 
+uint64_t sv_to_uint64(String_View sv) {
+    char uint64_string[sv.size + 1];
+    memcpy(uint64_string, sv.data, sv.size);
+    uint64_string[sv.size] = '\0';
+    return strtoull(uint64_string, NULL, 10);
+}
+
 double sv_to_decimal(String_View sv) {
     char decimal_string[sv.size + 1];
     memcpy(decimal_string, sv.data, sv.size);
     decimal_string[sv.size] = '\0';
     return strtod(decimal_string, NULL);
+}
+
+String_View sv_from_parts(const char *data, size_t size) {
+    return (String_View) { data, size };
 }
 
 bool sv_find(String_View sv, char ch, size_t *index) {

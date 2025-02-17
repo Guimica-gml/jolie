@@ -1,0 +1,23 @@
+proc fuck(): ^uint8 {
+    return "fuck";
+}
+
+proc puts(a: uint64) {
+}
+
+proc main() {
+    if < 0 1 {
+        puts(12);
+    }
+
+    let urmom: uint64 = urdad("reversed");
+    print_urmom(urmom);
+
+    let i: uint64 = 0;
+    while < i 10 {
+        putd(i);
+        i = + i 1;
+    }
+
+    puts("Hey! Listen\n");
+}

@@ -1,13 +1,13 @@
-(let a 0)
-(let b 1)
+proc main() {
+     let a = 0;
+     let b = 1;
 
-(defun inc(num_ptr)
-  (write num_ptr (+ (read num_ptr) 1)))
-
-(let i 0)
-(while (< i 20)
-  (let c (+ a b))
-  (putd a)
-  (set a b)
-  (set b c)
-  (inc (& i)))
+     let i = 0;
+     while < i 20 {
+         let c = + a b;
+         putd(a);
+         a = b;
+         b = c;
+         i = + i 1;
+     }
+}
