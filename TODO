@@ -1,0 +1,6 @@
+TODOs:
+- Deal with `^void` type
+- Better way of constructing error messages
+- Multiple error messages per compilation
+- Allow for hanging commas in proc calls and proc definitions
+- Codegen

@@ -141,6 +141,14 @@ Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jo
     } break;
     case JOLIE_EXPR_CAST: {
         Jolie_Expr_Cast *cast = &expr->as.cast;
+        if (jolie_type_eq(cast->type, jolie_type(JOLIE_TYPE_VOID, 0))) {
+            ast->failed = true;
+            str_append_fmt(
+                arena, &ast->error_message,
+                JOLIE_LOC_FMT": Error: casts to `void` are not allowed\n",
+                JOLIE_LOC_ARG(expr->loc));
+            return (Jolie_Type) {0};
+        }
         jolie_check_expr(arena, scope, ast, cast->expr);
         if (ast->failed) {
             return (Jolie_Type) {0};
@@ -214,6 +222,15 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
         } break;
         case JOLIE_STMT_LET: {
             Jolie_Stmt_Let *let = &stmt->as.let;
+
+            if (jolie_type_eq(let->type, jolie_type(JOLIE_TYPE_VOID, 0))) {
+                ast->failed = true;
+                str_append_fmt(
+                    arena, &ast->error_message,
+                    JOLIE_LOC_FMT": Error: variables with type `void` are not allowed\n",
+                    JOLIE_LOC_ARG(stmt->loc));
+                return;
+            }
 
             Jolie_Type type = jolie_check_expr(arena, scope, ast, &let->expr);
             if (ast->failed) {

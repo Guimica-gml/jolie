@@ -1,4 +1,4 @@
-proc urdad(a: ^uint8) {
+proc urdad(a: ^uint8): uint64 {
 }
 
 proc print_urmom(urmom: uint64) {
@@ -26,7 +26,7 @@ proc main() {
         puts("12");
     }
 
-    let urmom: uint64 = urdad("reversed");
+    let urmom: uint64 = + urdad("reversed") 2;
     print_urmom(urmom);
 
     let i: uint64 = 0;

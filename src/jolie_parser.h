@@ -4,6 +4,7 @@
 #include "./jolie_lexer.h"
 
 typedef enum {
+    JOLIE_TYPE_VOID,
     JOLIE_TYPE_UINT64,
     JOLIE_TYPE_UINT32,
     JOLIE_TYPE_UIN16,

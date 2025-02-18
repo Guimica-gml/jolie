@@ -1,6 +1,7 @@
 #include "./jolie_parser.h"
 
 Jolie_Buintin_Type_Info jolie_builtin_types[JOLIE_TYPE_COUNT] = {
+    [JOLIE_TYPE_VOID] = { .name = SV_STATIC("void"), .size = 0 },
     [JOLIE_TYPE_UINT64] = { .name = SV_STATIC("uint64"), .size = 8 },
     [JOLIE_TYPE_UINT32] = { .name = SV_STATIC("uint32"), .size = 4 },
     [JOLIE_TYPE_UIN16] = { .name = SV_STATIC("uint16"), .size = 2 },
