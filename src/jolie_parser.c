@@ -1,12 +1,79 @@
 #include "./jolie_parser.h"
 
+// %w -> String_View      (word)
+// %T -> Jolie_Token_Type (token type)
+// %t -> Jolie_Type       (type)
+// %l -> Jolie_Loc        (loc)
+// %z -> size_t           (%zu)
+// %s -> const char *     (%s)
+void jolie_str_append_vfmt_loc(
+    Arena *arena, String *str, const char *fmt, va_list args,
+    const char *file, size_t line)
+{
+    (void) args;
+    String_View sv = SV(fmt);
+    size_t percent_index;
+    while (sv_find(sv, '%', &percent_index)) {
+        arena_da_append_many(arena, str, sv.data, percent_index);
+        assert(percent_index + 1 < sv.size);
+        char special_ch = sv.data[percent_index + 1];
+        switch (special_ch) {
+        case '%': {
+            str_append_char(arena, str, '%');
+        } break;
+        case 'T': {
+            Jolie_Token_Type token_type = va_arg(args, Jolie_Token_Type);
+            str_append_fmt(arena, str, "%s", jolie_token_type_to_cstr(token_type));
+        } break;
+        case 't': {
+            Jolie_Type type = va_arg(args, Jolie_Type);
+            str_append_type(arena, str, type);
+        } break;
+        case 'l': {
+            Jolie_Loc loc = va_arg(args, Jolie_Loc);
+            str_append_fmt(arena, str, "%s:%zu:%zu", loc.filepath, loc.row, loc.col);
+        } break;
+        case 'w': {
+            String_View word = va_arg(args, String_View);
+            str_append_fmt(arena, str, "%.*s", (int) word.size, word.data);
+        } break;
+        case 'z': {
+            size_t n = va_arg(args, size_t);
+            str_append_fmt(arena, str, "%zu", n);
+        } break;
+        case 's': {
+            const char* cstr = va_arg(args, const char*);
+            str_append_cstr(arena, str, cstr);
+        } break;
+        default:
+            fprintf(
+                stderr, "%s:%zu: Panic: unknown special sequence in formated string `%%%c`\n",
+                file, line, special_ch);
+            exit(1);
+        }
+        sv.data = sv.data + percent_index + 2;
+        sv.size = sv.size - percent_index - 2;
+    }
+    arena_da_append_many(arena, str, sv.data, sv.size);
+}
+
+void jolie_str_append_fmt_loc(
+    Arena *arena, String *str, const char *file, size_t line,
+    const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    jolie_str_append_vfmt_loc(arena, str, fmt, args, file, line);
+    va_end(args);
+}
+
 Jolie_Buintin_Type_Info jolie_builtin_types[JOLIE_TYPE_COUNT] = {
-    [JOLIE_TYPE_VOID] = { .name = SV_STATIC("void"), .size = 0 },
+    [JOLIE_TYPE_VOID]   = { .name = SV_STATIC("void"),   .size = 0 },
     [JOLIE_TYPE_UINT64] = { .name = SV_STATIC("uint64"), .size = 8 },
     [JOLIE_TYPE_UINT32] = { .name = SV_STATIC("uint32"), .size = 4 },
-    [JOLIE_TYPE_UIN16] = { .name = SV_STATIC("uint16"), .size = 2 },
-    [JOLIE_TYPE_UINT8] = { .name = SV_STATIC("uint8"), .size = 1 },
-    [JOLIE_TYPE_BOOL] = { .name = SV_STATIC("bool"), .size = 1 },
+    [JOLIE_TYPE_UIN16]  = { .name = SV_STATIC("uint16"), .size = 2 },
+    [JOLIE_TYPE_UINT8]  = { .name = SV_STATIC("uint8"),  .size = 1 },
+    [JOLIE_TYPE_BOOL]   = { .name = SV_STATIC("bool"),   .size = 1 },
 };
 
 Jolie_Token jolie_parse_next_token(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
@@ -15,16 +82,15 @@ Jolie_Token jolie_parse_next_token(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *le
     switch (token.type) {
     case JOLIE_UNCLOSED_STRING: {
         ast->failed = true;
-        str_append_fmt(
+        jolie_str_append_fmt(
             arena, &ast->error_message,
-            JOLIE_LOC_FMT": Error: unclosed string literal", JOLIE_LOC_ARG(token.loc));
+            "%l: Error: unclosed string literal\n", token.loc);
     } break;
     case JOLIE_UNKNOWN_CHARACTER: {
         ast->failed = true;
-        str_append_fmt(
+        jolie_str_append_fmt(
             arena, &ast->error_message,
-            JOLIE_LOC_FMT": Error: unknown character `"SV_FMT"\n",
-            JOLIE_LOC_ARG(token.loc), SV_ARG(token.text));
+            "%l: Error: unclosed unknown character `%w`\n", token.loc, token);
     } break;
     default: {}
     }
@@ -42,10 +108,10 @@ Jolie_Token jolie_parse_expect(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer,
     Jolie_Token token = jolie_parse_next_token(arena, ast, lexer);
     if (token.type != type) {
         ast->failed = true;
-        str_append_fmt(
+        jolie_str_append_fmt(
             arena, &ast->error_message,
-            JOLIE_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected %s\n",
-            JOLIE_LOC_ARG(token.loc), SV_ARG(token.text), jolie_token_type_to_cstr(type));
+            "%l: Error: unexpected token `%w`, expected `%T`\n",
+            token.loc, token.text, type);
     }
     return token;
 }
@@ -227,10 +293,10 @@ Jolie_Expr jolie_parse_expr(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
     } break;
     default: {
         ast->failed = true;
-        str_append_fmt(
+        jolie_str_append_fmt(
             arena, &ast->error_message,
-            JOLIE_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected expression\n",
-            JOLIE_LOC_ARG(peek.loc), SV_ARG(peek.text));
+            "%l: Error: unexpected token `%w`, expected expression\n",
+            peek.loc, peek.text);
         return expr;
     }
     }
@@ -257,12 +323,10 @@ Jolie_Type jolie_parse_type(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
             break;
         } else {
             ast->failed = true;
-            str_append_fmt(
+            jolie_str_append_fmt(
                 arena, &ast->error_message,
-                JOLIE_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected %s or %s\n",
-                JOLIE_LOC_ARG(token.loc), SV_ARG(token.text),
-                jolie_token_type_to_cstr(JOLIE_CARET),
-                jolie_token_type_to_cstr(JOLIE_WORD));
+                "%l: Error: unexpected token `%w`, expected `%T` or `%T`\n",
+                token.loc, token.text, JOLIE_CARET, JOLIE_WORD);
             return type;
         }
     }
@@ -275,10 +339,10 @@ Jolie_Type jolie_parse_type(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
     }
 
     ast->failed = true;
-    str_append_fmt(
+    jolie_str_append_fmt(
         arena, &ast->error_message,
-        JOLIE_LOC_FMT": Error: unknown type `"SV_FMT"`\n",
-        JOLIE_LOC_ARG(word_loc), SV_ARG(type_name));
+        "%l: Error: unknown type `%w`\n",
+        word_loc, type_name);
     return type;
 }
 
@@ -347,12 +411,10 @@ Jolie_Exprs jolie_parse_proc_call_args(Arena *arena, Jolie_Ast *ast, Jolie_Lexer
             continue;
         } else {
             ast->failed = true;
-            str_append_fmt(
+            jolie_str_append_fmt(
                 arena, &ast->error_message,
-                JOLIE_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected %s or %s\n",
-                JOLIE_LOC_ARG(token.loc), SV_ARG(token.text),
-                jolie_token_type_to_cstr(JOLIE_COMMA),
-                jolie_token_type_to_cstr(JOLIE_PAREN_CLOSE));
+                "%l: Error: unexpected token `%w`, expected `%T` or `%T`\n",
+                token.loc, token.text, JOLIE_COMMA, JOLIE_PAREN_CLOSE);
             return exprs;
         }
     }
@@ -482,10 +544,10 @@ Jolie_Stmt jolie_parse_stmt(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
         } break;
         default: {
             ast->failed = true;
-            str_append_fmt(
+            jolie_str_append_fmt(
                 arena, &ast->error_message,
-                JOLIE_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected procedure call or variable assignment\n",
-                JOLIE_LOC_ARG(peek.loc), SV_ARG(peek.text));
+                "%l: Error: unexpected token `%w`, expected procedure call or variable assignment\n",
+                peek.loc, peek.text);
             return stmt;
         }
         }
@@ -509,10 +571,10 @@ Jolie_Stmt jolie_parse_stmt(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
     } break;
     default: {
         ast->failed = true;
-        str_append_fmt(
+        jolie_str_append_fmt(
             arena, &ast->error_message,
-            JOLIE_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected statement\n",
-            JOLIE_LOC_ARG(peek.loc), SV_ARG(peek.text));
+            "%l: Error: unexpected token `%w`, expected statement\n",
+            peek.loc, peek.text);
         return stmt;
     }
     }
@@ -522,10 +584,11 @@ Jolie_Stmt jolie_parse_stmt(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
 Jolie_Proc jolie_parse_proc(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
     Jolie_Proc proc = {0};
 
-    jolie_parse_expect(arena, ast, lexer, JOLIE_PROC);
+    Jolie_Token proc_word = jolie_parse_expect(arena, ast, lexer, JOLIE_PROC);
     if (ast->failed) {
         return proc;
     }
+    proc.loc = proc_word.loc;
 
     Jolie_Token proc_name_token = jolie_parse_expect(arena, ast, lexer, JOLIE_WORD);
     if (ast->failed) {
@@ -575,12 +638,10 @@ Jolie_Proc jolie_parse_proc(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
                 continue;
             } else {
                 ast->failed = true;
-                str_append_fmt(
+                jolie_str_append_fmt(
                     arena, &ast->error_message,
-                    JOLIE_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected %s or %s\n",
-                    JOLIE_LOC_ARG(token.loc), SV_ARG(token.text),
-                    jolie_token_type_to_cstr(JOLIE_COMMA),
-                    jolie_token_type_to_cstr(JOLIE_PAREN_CLOSE));
+                    "%l: Error: unexpected token `%w`, expected `%T` or `%T`\n",
+                    token.loc, token.text, JOLIE_COMMA, JOLIE_PAREN_CLOSE);
                 return proc;
             }
         }
@@ -628,10 +689,10 @@ Jolie_Ast jolie_parse(Arena *arena, Jolie_Lexer *lexer) {
         } break;
         default: {
             ast.failed = true;
-            str_append_fmt(
+            jolie_str_append_fmt(
                 arena, &ast.error_message,
-                JOLIE_LOC_FMT": Error: unexpected token `"SV_FMT"`, expected procedure declaration\n",
-                JOLIE_LOC_ARG(token.loc), SV_ARG(token.text));
+                "%l: Error: unexpected token `%w`, expected procedure declaration\n",
+                token.loc, token.text);
         }
         }
     }

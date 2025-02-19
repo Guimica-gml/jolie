@@ -21,12 +21,12 @@ proc putd(a: uint64) {
     }
 }
 
-proc main() {
+proc main(asd: uint64): uint32 {
     if < 0 1 {
-        puts("12");
+        puts("< 0 1");
     }
 
-    let urmom: uint64 = + urdad("reversed") 2;
+    let urmom: uint64 = + urdad("reversed") 69;
     print_urmom(urmom);
 
     let i: uint64 = 0;
@@ -36,4 +36,5 @@ proc main() {
     }
 
     puts("Hey! Listen\n");
+    return cast(uint32) 0;
 }

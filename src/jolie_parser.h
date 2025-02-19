@@ -3,6 +3,12 @@
 
 #include "./jolie_lexer.h"
 
+#define jolie_str_append_vfmt(arena, str, fmt, args) \
+    jolie_str_append_vfmt_loc((arena), (str), (fmt), (args), __FILE__, __LINE__)
+
+#define jolie_str_append_fmt(arena, str, ...) \
+    jolie_str_append_fmt_loc((arena), (str), __FILE__, __LINE__, __VA_ARGS__)
+
 typedef enum {
     JOLIE_TYPE_VOID,
     JOLIE_TYPE_UINT64,
@@ -155,6 +161,7 @@ typedef struct {
 } Jolie_Params;
 
 typedef struct {
+    Jolie_Loc loc;
     String_View name;
     Jolie_Params params;
     Jolie_Block block;
@@ -174,6 +181,9 @@ typedef struct {
     bool failed;
     String error_message;
 } Jolie_Ast;
+
+void jolie_str_append_vfmt_loc(Arena *arena, String *str, const char *fmt, va_list args, const char *file, size_t line);
+void jolie_str_append_fmt_loc(Arena *arena, String *str, const char *file, size_t line, const char *fmt, ...);
 
 Jolie_Token jolie_parse_next_token(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer);
 Jolie_Token jolie_parse_peek_token(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer);

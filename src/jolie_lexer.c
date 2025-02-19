@@ -44,36 +44,37 @@ size_t jolie_keywords_count =
 static_assert(JOLIE_TOKEN_COUNT == 28, "Count of tokens changed");
 const char *jolie_token_type_to_cstr(Jolie_Token_Type type) {
     switch (type) {
-    case JOLIE_END: return "JOLIE_END";
-    case JOLIE_WORD: return "JOLIE_WORD";
-    case JOLIE_PAREN_OPEN: return "JOLIE_PAREN_OPEN";
-    case JOLIE_PAREN_CLOSE: return "JOLIE_PAREN_CLOSE";
-    case JOLIE_CURLY_OPEN: return "JOLIE_CURLY_OPEN";
-    case JOLIE_CURLY_CLOSE: return "JOLIE_CURLY_CLOSE";
-    case JOLIE_BRACK_OPEN: return "JOLIE_BRACK_OPEN";
-    case JOLIE_BRACK_CLOSE: return "JOLIE_BRACK_CLOSE";
-    case JOLIE_SEMICOLON: return "JOLIE_SEMICOLON";
-    case JOLIE_COLON: return "JOLIE_COLON";
-    case JOLIE_CARET: return "JOLIE_CARET";
-    case JOLIE_EQUALS: return "JOLIE_EQUALS";
-    case JOLIE_PLUS: return "JOLIE_PLUS";
-    case JOLIE_DASH: return "JOLIE_DASH";
-    case JOLIE_ASTERISK: return "JOLIE_ASTERISK";
-    case JOLIE_SLASH: return "JOLIE_SLASH";
-    case JOLIE_COMMA: return "JOLIE_COMMA";
-    case JOLIE_LESS_THAN: return "JOLIE_LESS_THAN";
+    case JOLIE_END: return "<eof>";
+    case JOLIE_WORD: return "word";
 
-    case JOLIE_LET: return "JOLIE_LET";
-    case JOLIE_PROC: return "JOLIE_PROC";
-    case JOLIE_IF: return "JOLIE_IF";
-    case JOLIE_WHILE: return "JOLIE_WHILE";
-    case JOLIE_RETURN: return "JOLIE_RETURN";
-    case JOLIE_CAST: return "JOLIE_CAST";
+    case JOLIE_PAREN_OPEN: return "(";
+    case JOLIE_PAREN_CLOSE: return ")";
+    case JOLIE_CURLY_OPEN: return "{";
+    case JOLIE_CURLY_CLOSE: return "}";
+    case JOLIE_BRACK_OPEN: return "[";
+    case JOLIE_BRACK_CLOSE: return "]";
+    case JOLIE_SEMICOLON: return ";";
+    case JOLIE_COLON: return ":";
+    case JOLIE_CARET: return "^";
+    case JOLIE_EQUALS: return "=";
+    case JOLIE_PLUS: return "+";
+    case JOLIE_DASH: return "-";
+    case JOLIE_ASTERISK: return "*";
+    case JOLIE_SLASH: return "/";
+    case JOLIE_COMMA: return ",";
+    case JOLIE_LESS_THAN: return "<";
 
-    case JOLIE_UINT64_LIT: return "JOLIE_UINT64_LIT";
-    case JOLIE_STRING_LIT: return "JOLIE_STRING_LIT";
-    case JOLIE_UNCLOSED_STRING: return "JOLIE_UNCLOSED_STRING";
-    case JOLIE_UNKNOWN_CHARACTER: return "JOLIE_UNKNOWN_CHARACTER";
+    case JOLIE_LET: return "let";
+    case JOLIE_PROC: return "proc";
+    case JOLIE_IF: return "if";
+    case JOLIE_WHILE: return "while";
+    case JOLIE_RETURN: return "return";
+    case JOLIE_CAST: return "cast";
+
+    case JOLIE_UINT64_LIT: return "<uint64 lit>";
+    case JOLIE_STRING_LIT: return "<string lit>";
+    case JOLIE_UNCLOSED_STRING: return "<unclosed string lit>";
+    case JOLIE_UNKNOWN_CHARACTER: return "<unknown character>";
     default: assert(0 && "unreachable");
     }
 }
