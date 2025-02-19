@@ -11,6 +11,9 @@
 
 #include "./arena.h"
 
+#define max(a, b) (((a) > (b)) ? (a) : (b))
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+
 #define arena_da_append_many(a, da, items_ptr, items_count)                                   \
     do {                                                                                      \
         if ((da)->count + (items_count) > (da)->capacity) {                                   \

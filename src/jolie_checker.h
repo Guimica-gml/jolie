@@ -8,6 +8,7 @@
 typedef struct {
     String_View name;
     Jolie_Type type;
+    Jolie_Loc loc;
 } Jolie_Var;
 
 typedef struct Jolie_Scope Jolie_Scope;

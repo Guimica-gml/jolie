@@ -17,7 +17,8 @@ proc puts(cstr: ^uint8) {
 proc putd(a: uint64) {
     while < 1 0 {
         let i: uint64 = 0;
-        print_urmom(i);
+        let i: uint64 = cast(void) "Whoa";
+        print_urmom(asd, "asd");
     }
 }
 
