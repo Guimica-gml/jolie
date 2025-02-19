@@ -10,7 +10,6 @@ void jolie_str_append_vfmt_loc(
     Arena *arena, String *str, const char *fmt, va_list args,
     const char *file, size_t line)
 {
-    (void) args;
     String_View sv = SV(fmt);
     size_t percent_index;
     while (sv_find(sv, '%', &percent_index)) {
@@ -23,7 +22,7 @@ void jolie_str_append_vfmt_loc(
         } break;
         case 'T': {
             Jolie_Token_Type token_type = va_arg(args, Jolie_Token_Type);
-            str_append_fmt(arena, str, "%s", jolie_token_type_to_cstr(token_type));
+            str_append_cstr(arena, str, jolie_token_type_to_cstr(token_type));
         } break;
         case 't': {
             Jolie_Type type = va_arg(args, Jolie_Type);
@@ -31,11 +30,11 @@ void jolie_str_append_vfmt_loc(
         } break;
         case 'l': {
             Jolie_Loc loc = va_arg(args, Jolie_Loc);
-            str_append_fmt(arena, str, "%s:%zu:%zu", loc.filepath, loc.row, loc.col);
+            str_append_fmt(arena, str, JOLIE_LOC_FMT, JOLIE_LOC_ARG(loc));
         } break;
         case 'w': {
             String_View word = va_arg(args, String_View);
-            str_append_fmt(arena, str, "%.*s", (int) word.size, word.data);
+            str_append_sv(arena, str, word);
         } break;
         case 'z': {
             size_t n = va_arg(args, size_t);
@@ -121,7 +120,7 @@ void str_append_type(Arena *arena, String *str, Jolie_Type type) {
     for (size_t i= 0; i < type.indirection_level; ++i) {
         str_append_char(arena, str, '^');
     }
-    str_append_fmt(arena, str, SV_FMT, SV_ARG(info.name));
+    str_append_sv(arena, str, info.name);
 }
 
 size_t jolie_prepare_string(Arena *arena, Jolie_Ast *ast, String_View sv, Jolie_Loc loc) {

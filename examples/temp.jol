@@ -21,7 +21,7 @@ proc putd(a: uint64) {
     }
 }
 
-proc main(asd: uint64): uint32 {
+proc main(): uint32 {
     if < 0 1 {
         puts("< 0 1");
     }

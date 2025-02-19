@@ -1,5 +1,5 @@
 TODOs:
-- Make sure procedures alwasy return correctly (control flow)
+- Make sure procedures always return correctly (control flow)
 - Multiple error messages per compilation
 - Allow for trailing commas in proc calls and proc definitions
 - Codegen
