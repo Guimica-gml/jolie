@@ -1,5 +1,4 @@
 TODOs:
 - Tests
 - Make sure procedures always return correctly (control flow)
-- Allow for trailing commas in proc calls and proc definitions
 - Codegen

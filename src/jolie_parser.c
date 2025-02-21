@@ -375,16 +375,17 @@ Jolie_Exprs jolie_parse_proc_call_args(Arena *arena, Jolie_Ast *ast, Jolie_Lexer
         return exprs;
     }
 
-    Jolie_Token peek = jolie_parse_peek_token(arena, ast, lexer);
-    if (ast->failed) {
-        return exprs;
-    }
-    if (peek.type == JOLIE_PAREN_CLOSE) {
-        (void) jolie_parse_next_token(arena, ast, lexer);
-        return exprs;
-    }
-
     while (true) {
+        Jolie_Token peek = jolie_parse_peek_token(arena, ast, lexer);
+        if (ast->failed) {
+            return exprs;
+        }
+
+        if (peek.type == JOLIE_PAREN_CLOSE) {
+            (void) jolie_parse_next_token(arena, ast, lexer);
+            return exprs;
+        }
+
         Jolie_Expr expr = jolie_parse_expr(arena, ast, lexer);
         if (ast->failed) {
             return exprs;
@@ -409,6 +410,7 @@ Jolie_Exprs jolie_parse_proc_call_args(Arena *arena, Jolie_Ast *ast, Jolie_Lexer
             return exprs;
         }
     }
+
     return exprs;
 }
 
@@ -592,54 +594,56 @@ Jolie_Proc jolie_parse_proc(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
         return proc;
     }
 
-    Jolie_Token peek = jolie_parse_peek_token(arena, ast, lexer);
-    if (ast->failed) {
-        return proc;
-    }
-    if (peek.type == JOLIE_PAREN_CLOSE) {
-        (void) jolie_parse_next_token(arena, ast, lexer);
-    } else {
-        while (true) {
-            Jolie_Param param = {0};
-            Jolie_Token word = jolie_parse_expect(arena, ast, lexer, JOLIE_WORD);
-            if (ast->failed) {
-                return proc;
-            }
-            param.name = word.text;
-            param.loc = word.loc;
+    while (true) {
+        Jolie_Token peek = jolie_parse_peek_token(arena, ast, lexer);
+        if (ast->failed) {
+            return proc;
+        }
 
-            jolie_parse_expect(arena, ast, lexer, JOLIE_COLON);
-            if (ast->failed) {
-                return proc;
-            }
+        if (peek.type == JOLIE_PAREN_CLOSE) {
+            (void) jolie_parse_next_token(arena, ast, lexer);
+            break;
+        }
 
-            param.type = jolie_parse_type(arena, ast, lexer);
-            if (ast->failed) {
-                return proc;
-            }
-            arena_da_append(arena, &proc.params, param);
+        Jolie_Param param = {0};
+        Jolie_Token word = jolie_parse_expect(arena, ast, lexer, JOLIE_WORD);
+        if (ast->failed) {
+            return proc;
+        }
+        param.name = word.text;
+        param.loc = word.loc;
 
-            Jolie_Token token = jolie_parse_next_token(arena, ast, lexer);
-            if (ast->failed) {
-                return proc;
-            }
+        jolie_parse_expect(arena, ast, lexer, JOLIE_COLON);
+        if (ast->failed) {
+            return proc;
+        }
 
-            if (token.type == JOLIE_PAREN_CLOSE) {
-                break;
-            } else if (token.type == JOLIE_COMMA) {
-                continue;
-            } else {
-                ast->failed = true;
-                jolie_str_append_fmt(
-                    arena, &ast->error_message,
-                    "%l: Error: unexpected token `%w`, expected `%T` or `%T`\n",
-                    token.loc, token.text, JOLIE_COMMA, JOLIE_PAREN_CLOSE);
-                return proc;
-            }
+        param.type = jolie_parse_type(arena, ast, lexer);
+        if (ast->failed) {
+            return proc;
+        }
+        arena_da_append(arena, &proc.params, param);
+
+        Jolie_Token next = jolie_parse_next_token(arena, ast, lexer);
+        if (ast->failed) {
+            return proc;
+        }
+
+        if (next.type == JOLIE_PAREN_CLOSE) {
+            break;
+        } else if (next.type == JOLIE_COMMA) {
+            continue;
+        } else {
+            ast->failed = true;
+            jolie_str_append_fmt(
+                arena, &ast->error_message,
+                "%l: Error: unexpected token `%w`, expected `%T` or `%T`\n",
+                next.loc, next.text, JOLIE_COMMA, JOLIE_PAREN_CLOSE);
+            return proc;
         }
     }
 
-    peek = jolie_parse_peek_token(arena, ast, lexer);
+    Jolie_Token peek = jolie_parse_peek_token(arena, ast, lexer);
     if (ast->failed) {
         return proc;
     }

@@ -8,6 +8,13 @@ proc putc(urmom: uint8) {
     # Nothing here :P
 }
 
+proc hello(
+    one: uint8,
+    two: uint16,
+    three: uint32, # <- Trailing commas :O
+) {
+}
+
 proc puts(cstr: ^uint8) {
     while cast(bool) ^cstr {
         putc(^cstr);
@@ -15,7 +22,7 @@ proc puts(cstr: ^uint8) {
     }
 }
 
-proc putd(a: void) {
+proc putd(a: uint64) {
     let i: uint64 = 0;
     while < i 10 {
         let j: uint64 = 0;
