@@ -156,14 +156,6 @@ size_t jolie_prepare_string(Arena *arena, Jolie_Ast *ast, String_View sv, Jolie_
     return string_begin;
 }
 
-Jolie_Expr jolie_parse_expr(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer);
-Jolie_Type jolie_parse_type(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer);
-Jolie_Stmt jolie_parse_stmt(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer);
-Jolie_Exprs jolie_parse_proc_call_args(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer);
-Jolie_Proc jolie_parse_proc(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer);
-Jolie_Block jolie_parse_block(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer);
-Jolie_Ast jolie_parse(Arena *arena, Jolie_Lexer *lexer);
-
 Jolie_Binary_Op_Type jolie_bin_op_table[] = {
     [JOLIE_PLUS] = JOLIE_BINARY_OP_ADD,
     [JOLIE_DASH] = JOLIE_BINARY_OP_SUB,
@@ -614,6 +606,7 @@ Jolie_Proc jolie_parse_proc(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
                 return proc;
             }
             param.name = word.text;
+            param.loc = word.loc;
 
             jolie_parse_expect(arena, ast, lexer, JOLIE_COLON);
             if (ast->failed) {

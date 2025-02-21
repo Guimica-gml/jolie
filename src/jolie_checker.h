@@ -5,6 +5,9 @@
 
 #define JOLIE_ENTRY_POINT_PROC "main"
 
+#define JOLIE_VOID ((Jolie_Type) { JOLIE_TYPE_VOID, 0 })
+#define JOLIE_VOID_STAR ((Jolie_Type) { JOLIE_TYPE_VOID, 1 })
+
 typedef struct {
     String_View name;
     Jolie_Type type;

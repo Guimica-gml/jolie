@@ -1,10 +1,11 @@
 proc urdad(a: ^uint8): uint64 {
+    return 0;
 }
-
 proc print_urmom(urmom: uint64) {
+    return 0;
 }
-
 proc putc(urmom: uint8) {
+    # Nothing here :P
 }
 
 proc puts(cstr: ^uint8) {
@@ -14,11 +15,13 @@ proc puts(cstr: ^uint8) {
     }
 }
 
-proc putd(a: uint64) {
-    while < 1 0 {
-        let i: uint64 = 0;
-        let i: uint64 = cast(void) "Whoa";
+proc putd(a: void) {
+    let i: uint64 = 0;
+    while < i 10 {
+        let j: uint64 = 0;
+        let j: uint64 = cast(void) "Whoa";
         print_urmom(asd, "asd");
+        i = + i 1;
     }
 }
 

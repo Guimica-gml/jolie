@@ -150,6 +150,7 @@ struct Jolie_Stmt {
 };
 
 typedef struct {
+    Jolie_Loc loc;
     String_View name;
     Jolie_Type type;
 } Jolie_Param;

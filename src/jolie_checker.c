@@ -106,12 +106,12 @@ Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jo
     case JOLIE_EXPR_DEREF: {
         Jolie_Expr_Deref *deref = &expr->as.deref;
         Jolie_Type type = jolie_check_expr(arena, scope, ast, deref->expr);
-        if (jolie_type_eq(type, jolie_type(JOLIE_TYPE_VOID, 1))) {
+        if (jolie_type_eq(type, JOLIE_VOID_STAR)) {
             ast->failed = true;
             jolie_str_append_fmt(
                 arena, &ast->error_message,
-                "%l: Error: cannot derefence `^void`, please cast it to another pointer type\n",
-                expr->loc);
+                "%l: Error: cannot derefence `%t`, please cast it to another pointer type\n",
+                expr->loc, JOLIE_VOID_STAR);
         }
         if (type.indirection_level <= 0) {
             ast->failed = true;
@@ -124,12 +124,12 @@ Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jo
     } break;
     case JOLIE_EXPR_CAST: {
         Jolie_Expr_Cast *cast = &expr->as.cast;
-        if (jolie_type_eq(cast->type, jolie_type(JOLIE_TYPE_VOID, 0))) {
+        if (jolie_type_eq(cast->type, JOLIE_VOID)) {
             ast->failed = true;
             jolie_str_append_fmt(
                 arena, &ast->error_message,
-                "%l: Error: casts to `void` are not allowed\n",
-                expr->loc);
+                "%l: Error: casts to `%t` are not allowed\n",
+                expr->loc, JOLIE_VOID);
         }
         jolie_check_expr(arena, scope, ast, cast->expr);
         return cast->type;
@@ -187,12 +187,12 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
         case JOLIE_STMT_LET: {
             Jolie_Stmt_Let *let = &stmt->as.let;
 
-            if (jolie_type_eq(let->type, jolie_type(JOLIE_TYPE_VOID, 0))) {
+            if (jolie_type_eq(let->type, JOLIE_VOID)) {
                 ast->failed = true;
                 jolie_str_append_fmt(
                     arena, &ast->error_message,
-                    "%l: Error: variables with type `void` are not allowed\n",
-                    stmt->loc);
+                    "%l: Error: variables with type `%t` are not allowed\n",
+                    stmt->loc, JOLIE_VOID);
             }
             Jolie_Type type = jolie_check_expr(arena, scope, ast, &let->expr);
 
@@ -283,6 +283,13 @@ void jolie_check_proc(Arena *arena, Jolie_Ast *ast, Jolie_Proc *proc) {
     Jolie_Scope scope = {0};
     for (size_t i = 0; i < proc->params.count; ++i) {
         Jolie_Param *param = &proc->params.items[i];
+        if (jolie_type_eq(param->type, JOLIE_VOID)) {
+            ast->failed = true;
+            jolie_str_append_fmt(
+                arena, &ast->error_message,
+                "%l: Error: procedure parameters cannot be of type `%t`\n",
+                param->loc, JOLIE_VOID);
+        }
         Jolie_Var var = {
             .name = param->name,
             .type = param->type,
