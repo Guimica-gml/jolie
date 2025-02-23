@@ -131,6 +131,7 @@ typedef struct {
 } Jolie_Stmt_Assign;
 
 typedef struct {
+    bool is_void;
     Jolie_Expr expr;
 } Jolie_Stmt_Return;
 

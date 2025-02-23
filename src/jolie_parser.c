@@ -550,8 +550,19 @@ Jolie_Stmt jolie_parse_stmt(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
         if (ast->failed) {
             return stmt;
         }
-
         stmt.type = JOLIE_STMT_RETURN;
+
+        Jolie_Token peek = jolie_parse_peek_token(arena, ast, lexer);
+        if (ast->failed) {
+            return stmt;
+        }
+
+        if (peek.type == JOLIE_SEMICOLON) {
+            (void) jolie_parse_next_token(arena, ast, lexer);
+            stmt.as.return_.is_void = true;
+            return stmt;
+        }
+
         stmt.as.return_.expr = jolie_parse_expr(arena, ast, lexer);
         if (ast->failed) {
             return stmt;

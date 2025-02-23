@@ -265,7 +265,12 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
         } break;
         case JOLIE_STMT_RETURN: {
             Jolie_Stmt_Return *return_ = &stmt->as.return_;
-            Jolie_Type type = jolie_check_expr(arena, scope, ast, &return_->expr);
+            Jolie_Type type;
+            if (return_->is_void) {
+                type = JOLIE_VOID;
+            } else {
+                type = jolie_check_expr(arena, scope, ast, &return_->expr);
+            }
             if (!jolie_type_eq(type, return_type)) {
                 ast->failed = true;
                 jolie_str_append_fmt(
