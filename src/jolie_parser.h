@@ -112,6 +112,8 @@ typedef enum {
 typedef struct {
     Jolie_Expr condition;
     Jolie_Block block;
+    bool has_else_block;
+    Jolie_Block else_block;
 } Jolie_Stmt_If;
 
 typedef struct {

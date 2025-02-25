@@ -1,11 +1,16 @@
-proc urdad(a: ^uint8): uint64 {
-    return 0;
-}
 proc print_urmom(urmom: uint64) {
     return;
 }
 proc putc(urmom: uint8) {
     # Nothing here :P
+}
+
+proc urdad(a: ^uint8): uint64 {
+    if cast(bool) 1 {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 proc hello(

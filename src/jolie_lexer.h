@@ -35,6 +35,7 @@ typedef enum {
     JOLIE_LET,
     JOLIE_PROC,
     JOLIE_IF,
+    JOLIE_ELSE,
     JOLIE_WHILE,
     JOLIE_RETURN,
     JOLIE_CAST,

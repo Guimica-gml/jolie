@@ -1,7 +1,7 @@
 #include "./jolie_checker.h"
 
 Jolie_Scope jolie_make_scope(Jolie_Scope *parent) {
-    Jolie_Scope scope = { 0 };
+    Jolie_Scope scope = {0};
     scope.next = parent;
     return scope;
 }
@@ -49,14 +49,16 @@ Jolie_Type jolie_check_proc_call(Arena *arena, Jolie_Scope *scope, Jolie_Ast *as
         jolie_str_append_fmt(
             arena, &ast->error_message,
             "%l: Error: procedure not defined `%w`\n",
-            loc, proc_call->proc_name);
+            loc, proc_call->proc_name
+        );
     } else {
         if (proc_call->args.count != proc->params.count) {
             ast->failed = true;
             jolie_str_append_fmt(
                 arena, &ast->error_message,
                 "%l: Error: procedure expects %z argument(s), but got %z\n",
-                loc, proc->params.count, proc_call->args.count);
+                loc, proc->params.count, proc_call->args.count
+            );
         }
 
         for (size_t i = 0; i < proc_call->args.count; ++i) {
@@ -69,7 +71,8 @@ Jolie_Type jolie_check_proc_call(Arena *arena, Jolie_Scope *scope, Jolie_Ast *as
                     jolie_str_append_fmt(
                         arena, &ast->error_message,
                         "%l: Error: argument %z of `%w` takes type `%t`, but got type `%t`\n",
-                        arg->loc, i + 1, proc_call->proc_name, expected_type, type);
+                        arg->loc, i + 1, proc_call->proc_name, expected_type, type
+                    );
                 }
             }
         }
@@ -87,7 +90,8 @@ Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jo
             jolie_str_append_fmt(
                 arena, &ast->error_message,
                 "%l: Error: variable not defined `%w`\n",
-                expr->loc, name);
+                expr->loc, name
+            );
             return (Jolie_Type) {0};
         } else {
             return var->type;
@@ -111,14 +115,16 @@ Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jo
             jolie_str_append_fmt(
                 arena, &ast->error_message,
                 "%l: Error: cannot derefence `%t`, please cast it to another pointer type\n",
-                expr->loc, JOLIE_VOID_STAR);
+                expr->loc, JOLIE_VOID_STAR
+            );
         }
         if (type.indirection_level <= 0) {
             ast->failed = true;
             jolie_str_append_fmt(
                 arena, &ast->error_message,
                 "%l: Error: cannot derefence non-pointer type\n",
-                expr->loc);
+                expr->loc
+            );
         }
         return jolie_type(type.id, type.indirection_level - 1);
     } break;
@@ -129,7 +135,8 @@ Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jo
             jolie_str_append_fmt(
                 arena, &ast->error_message,
                 "%l: Error: casts to `%t` are not allowed\n",
-                expr->loc, JOLIE_VOID);
+                expr->loc, JOLIE_VOID
+            );
         }
         jolie_check_expr(arena, scope, ast, cast->expr);
         return cast->type;
@@ -145,7 +152,8 @@ Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jo
             jolie_str_append_fmt(
                 arena, &ast->error_message,
                 "%l: Error: operands expect both expression to have the same type, but left expression is of type `%t` and right expression is of type `%t`\n",
-                expr->loc, lh_type, rh_type);
+                expr->loc, lh_type, rh_type
+            );
         }
 
         switch (op->type) {
@@ -178,11 +186,15 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
                 jolie_str_append_fmt(
                     arena, &ast->error_message,
                     ": Error: if condition expects an expression of type `%t`, but expression is of type `%t`\n",
-                    if_->condition.loc, expected, cond_type);
+                    if_->condition.loc, expected, cond_type
+                );
             }
 
             Jolie_Scope sub_scope = jolie_make_scope(scope);
             jolie_check_block(arena, &sub_scope, ast, &if_->block, return_type);
+            if (if_->has_else_block) {
+                jolie_check_block(arena, &sub_scope, ast, &if_->else_block, return_type);
+            }
         } break;
         case JOLIE_STMT_LET: {
             Jolie_Stmt_Let *let = &stmt->as.let;
@@ -192,7 +204,8 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
                 jolie_str_append_fmt(
                     arena, &ast->error_message,
                     "%l: Error: variables with type `%t` are not allowed\n",
-                    stmt->loc, JOLIE_VOID);
+                    stmt->loc, JOLIE_VOID
+                );
             }
             Jolie_Type type = jolie_check_expr(arena, scope, ast, &let->expr);
 
@@ -203,11 +216,13 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
                     jolie_str_append_fmt(
                         arena, &ast->error_message,
                         "%l: Error: variable already defined `%w`\n",
-                        stmt->loc, let->name);
+                        stmt->loc, let->name
+                    );
                     jolie_str_append_fmt(
                         arena, &ast->error_message,
                         "%l: Note: original variable defined here\n",
-                        var->loc);
+                        var->loc
+                    );
                 }
             }
 
@@ -216,7 +231,8 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
                 jolie_str_append_fmt(
                     arena, &ast->error_message,
                     "%l: Error: variable declared with type `%t`, but expression is of type `%t`\n",
-                    stmt->loc, let->type, type);
+                    stmt->loc, let->type, type
+                );
             }
 
             Jolie_Var var = { let->name, let->type, stmt->loc };
@@ -232,7 +248,8 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
                 jolie_str_append_fmt(
                     arena, &ast->error_message,
                     "%l: Error: while condition expects an expression of type `%t`, but expression is of type `%t`\n",
-                    while_->condition.loc, expected, cond_type);
+                    while_->condition.loc, expected, cond_type
+                );
             }
 
             Jolie_Scope sub_scope = jolie_make_scope(scope);
@@ -251,7 +268,8 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
                 jolie_str_append_fmt(
                     arena, &ast->error_message,
                     "%l: Error: variable not defined `%w`\n",
-                    stmt->loc, assign->name);
+                    stmt->loc, assign->name
+                );
             } else {
                 Jolie_Type type = jolie_check_expr(arena, scope, ast, &assign->expr);
                 if (!jolie_type_eq(type, var->type)) {
@@ -259,7 +277,8 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
                     jolie_str_append_fmt(
                         arena, &ast->error_message,
                         "%l: Error: variable declared with type `%t`, but expression is of type `%t`\n",
-                        stmt->loc, var->type, type);
+                        stmt->loc, var->type, type
+                    );
                 }
             }
         } break;
@@ -276,7 +295,8 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
                 jolie_str_append_fmt(
                     arena, &ast->error_message,
                     "%l: Error: procedure expected return type `%t`, but expression is of type `%t`\n",
-                    return_->expr.loc, return_type, type);
+                    return_->expr.loc, return_type, type
+                );
             }
         } break;
         default: assert(0 && "unreachable");
@@ -293,7 +313,8 @@ void jolie_check_proc(Arena *arena, Jolie_Ast *ast, Jolie_Proc *proc) {
             jolie_str_append_fmt(
                 arena, &ast->error_message,
                 "%l: Error: procedure parameters cannot be of type `%t`\n",
-                param->loc, JOLIE_VOID);
+                param->loc, JOLIE_VOID
+            );
         }
         Jolie_Var var = {
             .name = param->name,
@@ -318,14 +339,16 @@ void jolie_check_ast(Arena *arena, Jolie_Ast *ast) {
                 jolie_str_append_fmt(
                     arena, &ast->error_message,
                     "%l: Error: `%s` procedure should return `%t`\n",
-                    proc->loc, JOLIE_ENTRY_POINT_PROC, main_return_type);
+                    proc->loc, JOLIE_ENTRY_POINT_PROC, main_return_type
+                );
             }
             if (proc->params.count > 0) {
                 ast->failed = true;
                 jolie_str_append_fmt(
                     arena, &ast->error_message,
                     "%l: Error: `%s` procedure should receive no arguments\n",
-                    proc->loc, JOLIE_ENTRY_POINT_PROC);
+                    proc->loc, JOLIE_ENTRY_POINT_PROC
+                );
             }
             contains_main = true;
         }
@@ -337,6 +360,7 @@ void jolie_check_ast(Arena *arena, Jolie_Ast *ast) {
         jolie_str_append_fmt(
             arena, &ast->error_message,
             "Error: no `%s` procedure found\n",
-            JOLIE_ENTRY_POINT_PROC);
+            JOLIE_ENTRY_POINT_PROC
+        );
     }
 }
