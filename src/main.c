@@ -13,14 +13,16 @@ String read_file(Arena *arena, const char *filepath) {
     if (file == NULL) {
         fprintf(
             stderr, "Error: could not read '%s': %s\n",
-            filepath, strerror(errno));
+            filepath, strerror(errno)
+        );
         exit(1);
     }
 
     if (fseek(file, 0, SEEK_END) != 0) {
         fprintf(
             stderr, "Error: could not read '%s': %s\n",
-            filepath, strerror(errno));
+            filepath, strerror(errno)
+        );
         exit(1);
     }
 
@@ -32,7 +34,8 @@ String read_file(Arena *arena, const char *filepath) {
     if (ferror(file)) {
         fprintf(
             stderr, "Error: could not read '%s': %s\n",
-            filepath, strerror(errno));
+            filepath, strerror(errno)
+        );
         exit(1);
     }
 
