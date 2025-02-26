@@ -107,6 +107,8 @@ typedef enum {
     JOLIE_STMT_PROC_CALL,
     JOLIE_STMT_ASSIGN,
     JOLIE_STMT_RETURN,
+    JOLIE_STMT_BREAK,
+    JOLIE_STMT_CONTINUE,
 } Jolie_Stmt_Type;
 
 typedef struct {

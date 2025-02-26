@@ -168,7 +168,8 @@ Jolie_Type jolie_check_expr(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jo
             assert(0 && "unreachable");
         }
     } break;
-    default: assert(0 && "unreachable");
+    default:
+        assert(0 && "unreachable");
     }
 }
 
@@ -185,7 +186,7 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
                 ast->failed = true;
                 jolie_str_append_fmt(
                     arena, &ast->error_message,
-                    ": Error: if condition expects an expression of type `%t`, but expression is of type `%t`\n",
+                    "%l: Error: if condition expects an expression of type `%t`, but expression is of type `%t`\n",
                     if_->condition.loc, expected, cond_type
                 );
             }
@@ -299,7 +300,14 @@ void jolie_check_block(Arena *arena, Jolie_Scope *scope, Jolie_Ast *ast, Jolie_B
                 );
             }
         } break;
-        default: assert(0 && "unreachable");
+        case JOLIE_STMT_BREAK: {
+            // assert(0 && "unimplemented");
+        } break;
+        case JOLIE_STMT_CONTINUE: {
+            // assert(0 && "unimplemented");
+        } break;
+        default:
+            assert(0 && "unreachable");
         }
     }
 }

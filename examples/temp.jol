@@ -6,8 +6,19 @@ proc putc(urmom: uint8) {
 }
 
 proc urdad(a: ^uint8): uint64 {
+    while cast(bool) 1 {
+        break;
+    }
+
+    let i: uint64 = 0;
+    while cast(bool) < i 10 {
+        i = + i 1;
+        continue;
+        return 12;
+    }
+
     if cast(bool) 1 {
-        return 1;
+        # should error, does not
     } else {
         return 0;
     }

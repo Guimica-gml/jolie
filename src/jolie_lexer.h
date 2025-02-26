@@ -38,6 +38,8 @@ typedef enum {
     JOLIE_ELSE,
     JOLIE_WHILE,
     JOLIE_RETURN,
+    JOLIE_BREAK,
+    JOLIE_CONTINUE,
     JOLIE_CAST,
 
     // Literals

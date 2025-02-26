@@ -7,7 +7,7 @@ typedef struct {
     Jolie_Token_Type type;
 } Jolie_Literal_Token;
 
-static_assert(JOLIE_TOKEN_COUNT == 29, "Count of tokens changed");
+static_assert(JOLIE_TOKEN_COUNT == 31, "Count of tokens changed");
 Jolie_Literal_Token jolie_symbols[] = {
     { .text = SV_STATIC("("), .type = JOLIE_PAREN_OPEN },
     { .text = SV_STATIC(")"), .type = JOLIE_PAREN_CLOSE },
@@ -29,7 +29,7 @@ Jolie_Literal_Token jolie_symbols[] = {
 size_t jolie_symbols_count =
     sizeof(jolie_symbols)/sizeof(*jolie_symbols);
 
-static_assert(JOLIE_TOKEN_COUNT == 29, "Count of tokens changed");
+static_assert(JOLIE_TOKEN_COUNT == 31, "Count of tokens changed");
 Jolie_Literal_Token jolie_keywords[] = {
     { .text = SV_STATIC("let"), .type = JOLIE_LET },
     { .text = SV_STATIC("proc"), .type = JOLIE_PROC },
@@ -37,12 +37,14 @@ Jolie_Literal_Token jolie_keywords[] = {
     { .text = SV_STATIC("else"), .type = JOLIE_ELSE },
     { .text = SV_STATIC("while"), .type = JOLIE_WHILE },
     { .text = SV_STATIC("return"), .type = JOLIE_RETURN },
+    { .text = SV_STATIC("break"), .type = JOLIE_BREAK },
+    { .text = SV_STATIC("continue"), .type = JOLIE_CONTINUE },
     { .text = SV_STATIC("cast"), .type = JOLIE_CAST },
 };
 size_t jolie_keywords_count =
     sizeof(jolie_keywords)/sizeof(*jolie_keywords);
 
-static_assert(JOLIE_TOKEN_COUNT == 29, "Count of tokens changed");
+static_assert(JOLIE_TOKEN_COUNT == 31, "Count of tokens changed");
 const char *jolie_token_type_to_cstr(Jolie_Token_Type type) {
     switch (type) {
     case JOLIE_END: return "<eof>";
@@ -71,6 +73,8 @@ const char *jolie_token_type_to_cstr(Jolie_Token_Type type) {
     case JOLIE_ELSE: return "else";
     case JOLIE_WHILE: return "while";
     case JOLIE_RETURN: return "return";
+    case JOLIE_BREAK: return "break";
+    case JOLIE_CONTINUE: return "continue";
     case JOLIE_CAST: return "cast";
 
     case JOLIE_UINT64_LIT: return "<uint64 lit>";

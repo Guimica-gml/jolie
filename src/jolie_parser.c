@@ -78,7 +78,7 @@ Jolie_Buintin_Type_Info jolie_builtin_types[JOLIE_TYPE_COUNT] = {
 
 Jolie_Token jolie_parse_next_token(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
     Jolie_Token token = jolie_next_token(lexer);
-    static_assert(JOLIE_TOKEN_COUNT == 29, "Count of tokens changed");
+    static_assert(JOLIE_TOKEN_COUNT == 31, "Count of tokens changed");
     switch (token.type) {
     case JOLIE_UNCLOSED_STRING: {
         ast->failed = true;
@@ -592,6 +592,28 @@ Jolie_Stmt jolie_parse_stmt(Arena *arena, Jolie_Ast *ast, Jolie_Lexer *lexer) {
             return stmt;
         }
 
+        jolie_parse_expect(arena, ast, lexer, JOLIE_SEMICOLON);
+        if (ast->failed) {
+            return stmt;
+        }
+    } break;
+    case JOLIE_BREAK: {
+        jolie_parse_expect(arena, ast, lexer, JOLIE_BREAK);
+        if (ast->failed) {
+            return stmt;
+        }
+        stmt.type = JOLIE_STMT_BREAK;
+        jolie_parse_expect(arena, ast, lexer, JOLIE_SEMICOLON);
+        if (ast->failed) {
+            return stmt;
+        }
+    } break;
+    case JOLIE_CONTINUE: {
+        jolie_parse_expect(arena, ast, lexer, JOLIE_CONTINUE);
+        if (ast->failed) {
+            return stmt;
+        }
+        stmt.type = JOLIE_STMT_CONTINUE;
         jolie_parse_expect(arena, ast, lexer, JOLIE_SEMICOLON);
         if (ast->failed) {
             return stmt;
